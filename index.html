@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tales of Tezigdal</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <canvas id="gl"></canvas>
+
+    <div id="screen-menu" class="overlay">
+      <div class="menu-inner">
+        <p class="eyebrow">Campaigns of a land that remembers</p>
+        <h1>Tales of Tezigdal</h1>
+        <p class="lede">Choose a campaign</p>
+        <div id="campaign-list" class="campaign-list"></div>
+        <div class="menu-actions">
+          <button type="button" id="btn-import">Import Save</button>
+          <button type="button" id="btn-export">Export Save</button>
+        </div>
+        <p id="gamepad-banner" class="gamepad-banner">
+          Plug in a controller anytime. Keyboard and mouse work too.
+        </p>
+        <p class="controls-footnote">
+          Move: left stick / WASD · Look: right stick / mouse · Talk: A / E · Punch: X / Space ·
+          Pause: Start / Esc
+        </p>
+        <p class="version" id="menu-version"></p>
+      </div>
+    </div>
+
+    <div id="confirm-modal" class="overlay modal hidden">
+      <div class="modal-card">
+        <p id="confirm-text">Start a new campaign? This overwrites the save stored in this browser.</p>
+        <div class="menu-actions">
+          <button type="button" id="confirm-yes">Overwrite</button>
+          <button type="button" id="confirm-no">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="loading" class="overlay hidden">
+      <div class="menu-inner loading-inner">
+        <p class="eyebrow">Tales of Tezigdal</p>
+        <h2 id="loading-title">Entering Hollowrest…</h2>
+        <div class="loading-bar"><div id="loading-fill"></div></div>
+      </div>
+    </div>
+
+    <div id="hud" class="hud hidden">
+      <div class="hud-top">
+        <div class="hp-wrap">
+          <div class="hp-label">
+            <span>Destral</span>
+            <span id="hp-text">100 / 100</span>
+          </div>
+          <div class="hp-track">
+            <div id="hp-lost" class="hp-lost"></div>
+            <div id="hp-fill" class="hp-fill"></div>
+          </div>
+        </div>
+        <div class="hud-meta">
+          <div id="area-name" class="area-name">Hollowrest</div>
+          <div id="exp-text" class="exp-text">EXP 0</div>
+        </div>
+      </div>
+      <div id="hurt-vignette"></div>
+      <div id="interact-prompt" class="prompt hidden"></div>
+      <div id="look-hint" class="look-hint">Click the world to look around · Right stick also looks</div>
+      <div id="control-hint" class="control-hint"></div>
+    </div>
+
+    <div id="dialogue" class="overlay dialogue hidden">
+      <div class="dialogue-card">
+        <div class="dialogue-who">
+          <strong id="dialogue-name"></strong>
+          <span id="dialogue-title"></span>
+        </div>
+        <p id="dialogue-text"></p>
+        <div id="dialogue-choices" class="dialogue-choices"></div>
+      </div>
+    </div>
+
+    <div id="pause" class="overlay modal hidden">
+      <div class="modal-card">
+        <h2>Paused</h2>
+        <p id="pause-sub" class="pause-sub"></p>
+        <div class="stack-actions">
+          <button type="button" id="pause-resume">Resume</button>
+          <button type="button" id="pause-save">Save Game</button>
+          <button type="button" id="pause-export">Export Save</button>
+          <button type="button" id="pause-menu">Return to Menu</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="death" class="overlay modal hidden">
+      <div class="modal-card">
+        <h2>Destral has fallen</h2>
+        <p>The mountain bowl holds its dead only for a moment. Rise, and try the pass again.</p>
+        <div class="stack-actions">
+          <button type="button" id="death-continue">Return to Hollowrest</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast"></div>
+    <div id="fade"></div>
+    <input type="file" id="import-file" accept="application/json,.json" hidden />
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
