@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { playPunchHit } from './audio.js';
 import { PLAYER } from './config.js';
 import { CameraRig } from './camera.js';
 import { CAMPAIGNS } from './campaigns.js';
@@ -58,7 +59,7 @@ export class Game {
     this.renderer.toneMappingExposure = 1.05;
 
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(52, window.innerWidth / window.innerHeight, 0.12, 220);
+    this.camera = new THREE.PerspectiveCamera(52, window.innerWidth / window.innerHeight, 0.12, 420);
     this.clock = new THREE.Clock();
     this.player = new Player(this.scene, input);
     this.rig = new CameraRig(this.camera, this.player, input, settings);
@@ -315,6 +316,7 @@ export class Game {
 
   resolvePunch() {
     const fwd = this.player.forward();
+    let hit = false;
     for (const enemy of this.world.enemies) {
       if (enemy.dead) continue;
       const dx = enemy.x - this.player.x;
@@ -325,9 +327,11 @@ export class Game {
       const dirz = dz / (dist || 1);
       if (dirx * fwd.x + dirz * fwd.z < PLAYER.punchCone) continue;
       const killed = enemy.takeDamage(PLAYER.punchDamage, this.player.x, this.player.z);
+      hit = true;
       rumble(this.input, 0.35, 80);
       if (killed) this.grantKill(enemy);
     }
+    if (hit) playPunchHit();
   }
 
   grantKill(enemy) {
@@ -335,7 +339,7 @@ export class Game {
     this.save.data.defeated = Array.from(new Set([...(this.save.data.defeated || []), enemy.id]));
     if (enemy.boss) {
       this.save.data.bossDefeated = true;
-      toast('The cave-wight is slain. Hollyhollow is safer — for now.');
+      toast('The cave-wight is slain. A stone on the far wall begins to hum.');
     } else {
       toast(`+${enemy.exp} EXP`);
     }

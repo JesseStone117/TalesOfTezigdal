@@ -15,6 +15,7 @@ export function emptyDestralSave() {
       defeated: [],
       talked: [],
       bossDefeated: false,
+      secretOpened: false,
       playTime: 0,
     },
   };
@@ -89,6 +90,7 @@ export function normalizeSave(save) {
   if (typeof data.exp !== 'number') data.exp = 0;
   if (typeof data.playTime !== 'number') data.playTime = 0;
   data.bossDefeated = !!data.bossDefeated;
+  data.secretOpened = !!data.secretOpened;
   return {
     version: SAVE_VERSION,
     campaignId,

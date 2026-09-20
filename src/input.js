@@ -1,3 +1,4 @@
+import { unlockAudio } from './audio.js';
 import { INPUT, SPRITE } from './config.js';
 import { padByIndex } from './settings.js';
 
@@ -44,6 +45,7 @@ export class Input {
         e.preventDefault();
       }
       if (e.repeat) return;
+      unlockAudio();
       this._keys.add(e.code);
       const bind = KEY_BIND[e.code];
       if (bind) this._pressed.add(bind);
@@ -59,6 +61,7 @@ export class Input {
     });
 
     window.addEventListener('mousedown', (e) => {
+      unlockAudio();
       if (e.button === 0 && document.pointerLockElement) this._pressed.add('punch');
       if (e.button === 2) this._rightMouse = true;
     });
@@ -149,6 +152,7 @@ export class Input {
 
     const p1 = this.p1Pad;
     if (p1) {
+      if (p1.buttons?.some((b) => b.pressed)) unlockAudio();
       this.usingGamepad = true;
       this.gamepadName = p1.id;
       const lx = axis(p1.axes[0]);

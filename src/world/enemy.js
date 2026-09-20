@@ -1,12 +1,14 @@
+import * as THREE from 'three';
 import { COMBAT } from '../config.js';
 import { makeCreature } from './props.js';
-import { angleLerp } from '../utils.js';
+import { angleLerp, clamp } from '../utils.js';
 
 export class Enemy {
   constructor({
     id,
     x,
     z,
+    y = 0,
     boss = false,
     homeX,
     homeZ,
@@ -31,13 +33,19 @@ export class Enemy {
     this.wanderA = Math.random() * Math.PI * 2;
     this.homeX = homeX ?? x;
     this.homeZ = homeZ ?? z;
-    this.group = makeCreature({
+    this.group = new THREE.Group();
+    this.body = makeCreature({
       color: boss ? 0x6a1c22 : 0x4a3a58,
       scale: boss ? 1.85 : 1,
       horns: true,
       boss,
     });
-    this.group.position.set(x, 0, z);
+    this.group.add(this.body);
+    this.hpBar = makeHpBar(boss);
+    this.hpBar.position.y = boss ? 3.55 : 2.12;
+    this.group.add(this.hpBar);
+    this.group.position.set(x, y, z);
+    this.syncHpBar();
   }
 
   get x() {
@@ -64,10 +72,21 @@ export class Enemy {
       this.group.visible = false;
       return true;
     }
+    this.syncHpBar();
     return false;
   }
 
-  update(dt, player, world) {
+  syncHpBar() {
+    if (!this.hpBar) return;
+    const pct = clamp(this.health / this.maxHealth, 0, 1);
+    const fill = this.hpBar.getObjectByName('hpFill');
+    const width = this.hpBar.userData.width;
+    fill.scale.x = Math.max(0.02, pct);
+    fill.position.x = -((1 - pct) * width) / 2;
+    this.hpBar.visible = !this.dead;
+  }
+
+  update(dt, player, world, camera) {
     if (this.dead) {
       this.group.visible = false;
       return;
@@ -76,7 +95,7 @@ export class Enemy {
     this.cooldown = Math.max(0, this.cooldown - dt);
     this.hitFlash = Math.max(0, this.hitFlash - dt);
     this.group.traverse((n) => {
-      if (n.isMesh && n.material && 'emissiveIntensity' in n.material) {
+      if (n.isMesh && n.material?.isMeshStandardMaterial) {
         n.material.emissiveIntensity = this.hitFlash > 0 ? 0.9 : 0.2;
       }
     });
@@ -114,6 +133,8 @@ export class Enemy {
 
     this.group.position.y = world.heightAt(this.x, this.z);
     this.keepInside(world);
+    if (camera) this.hpBar.quaternion.copy(camera.quaternion);
+    this.syncHpBar();
   }
 
   wander(dt, world) {
@@ -140,7 +161,7 @@ export class Enemy {
 
   lookAt(dx, dz, dt) {
     const yaw = Math.atan2(dx, dz);
-    this.group.rotation.y = angleLerp(this.group.rotation.y, yaw, 1 - Math.pow(0.002, dt));
+    this.body.rotation.y = angleLerp(this.body.rotation.y, yaw, 1 - Math.pow(0.002, dt));
   }
 
   keepInside(world) {
@@ -148,4 +169,22 @@ export class Enemy {
     this.group.position.x = r.x;
     this.group.position.z = r.z;
   }
+}
+
+function makeHpBar(boss) {
+  const width = boss ? 1.7 : 1.2;
+  const group = new THREE.Group();
+  group.userData.width = width;
+  const bg = new THREE.Mesh(
+    new THREE.PlaneGeometry(width + 0.1, 0.2),
+    new THREE.MeshBasicMaterial({ color: 0x120909, depthTest: true }),
+  );
+  const fill = new THREE.Mesh(
+    new THREE.PlaneGeometry(width, 0.13),
+    new THREE.MeshBasicMaterial({ color: boss ? 0xd4b46a : 0xc4453c, depthTest: true }),
+  );
+  fill.name = 'hpFill';
+  fill.position.z = 0.012;
+  group.add(bg, fill);
+  return group;
 }
