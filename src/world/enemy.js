@@ -1,6 +1,6 @@
 import { COMBAT } from '../config.js';
 import { makeCreature } from './props.js';
-import { angleLerp, clamp } from '../utils.js';
+import { angleLerp } from '../utils.js';
 
 export class Enemy {
   constructor({
@@ -61,6 +61,7 @@ export class Enemy {
     if (this.health <= 0) {
       this.dead = true;
       this.state = 'dead';
+      this.group.visible = false;
       return true;
     }
     return false;
@@ -68,8 +69,7 @@ export class Enemy {
 
   update(dt, player, world) {
     if (this.dead) {
-      this.group.scale.y = clamp(this.group.scale.y - dt * 1.6, 0.08, 4);
-      this.group.position.y = world.heightAt(this.x, this.z);
+      this.group.visible = false;
       return;
     }
 

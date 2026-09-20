@@ -3,10 +3,11 @@ import { CAMERA } from './config.js';
 import { clamp } from './utils.js';
 
 export class CameraRig {
-  constructor(camera, player, input) {
+  constructor(camera, player, input, settings) {
     this.camera = camera;
     this.player = player;
     this.input = input;
+    this.settings = settings;
     this.yaw = 0;
     this.pitch = 0.28;
     this.ray = new THREE.Raycaster();
@@ -25,8 +26,10 @@ export class CameraRig {
   }
 
   update(dt, world) {
-    this.yaw -= this.input.lookX * CAMERA.mouseSens * (this.input.usingGamepad ? CAMERA.padSens : 1);
-    this.pitch -= this.input.lookY * CAMERA.mouseSens * (this.input.usingGamepad ? CAMERA.padSens : 1);
+    const lookScale = CAMERA.mouseSens * (this.input.p1Pad ? CAMERA.padSens : 1);
+    this.yaw -= this.input.lookX * lookScale;
+    const invert = this.settings.invertY ? 1 : -1;
+    this.pitch -= this.input.lookY * lookScale * invert;
     this.pitch = clamp(this.pitch, CAMERA.minPitch, CAMERA.maxPitch);
 
     const { pos, look } = this.ideal();

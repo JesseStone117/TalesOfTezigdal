@@ -92,7 +92,7 @@ export function createCave(saveData) {
         x: 0,
         z: 1.2,
         radius: 2.2,
-        prompt: (pad) => `${pad ? 'A' : 'E'}  Return to Hollowrest`,
+        prompt: (pad) => `${pad ? 'A' : 'E'}  Return to Hollyhollow`,
         use: (game) => game.changeArea('village', { via: 'cave' }),
       });
     }

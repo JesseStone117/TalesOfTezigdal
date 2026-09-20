@@ -1,19 +1,24 @@
 import { Game } from './game.js';
 import { Input } from './input.js';
 import { emptyDestralSave, writeSave } from './save.js';
-import { bindMenu, setFade, show } from './ui.js';
+import { loadSettings } from './settings.js';
+import { bindMenu, bindSettings, setFade, show } from './ui.js';
 import { $ } from './utils.js';
 
 const canvas = $('gl');
-const input = new Input();
-const game = new Game({ canvas, input });
+const settings = loadSettings();
+const input = new Input(settings);
+const game = new Game({ canvas, input, settings });
 window.__tot = {
   game,
   input,
+  settings,
   get screen() {
     return screen;
   },
 };
+
+bindSettings(settings);
 
 let screen = 'menu';
 

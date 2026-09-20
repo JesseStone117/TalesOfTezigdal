@@ -3,30 +3,36 @@ import { PLAYER } from './config.js';
 import { CameraRig } from './camera.js';
 import { CAMPAIGNS } from './campaigns.js';
 import { rumble } from './input.js';
+import { Pixie } from './pixie.js';
 import { Player } from './player.js';
 import { emptyDestralSave, exportSave, writeSave } from './save.js';
 import {
   bindDeath,
   bindPause,
   closeDialogue,
+  closeSettings,
   flashHurt,
   focusFirstButton,
   handleOverlayNav,
+  isSettingsOpen,
   openDialogue,
+  openSettings as showSettingsPanel,
   setFade,
   setLoading,
   show,
   toast,
   updateHud,
+  updateSpriteHud,
 } from './ui.js';
 import { $, wait } from './utils.js';
 import { createCave } from './world/cave.js';
 import { createVillage } from './world/village.js';
 
 export class Game {
-  constructor({ canvas, input }) {
+  constructor({ canvas, input, settings }) {
     this.canvas = canvas;
     this.input = input;
+    this.settings = settings;
     this.mode = 'off';
     this.paused = false;
     this.talking = false;
@@ -55,11 +61,13 @@ export class Game {
     this.camera = new THREE.PerspectiveCamera(52, window.innerWidth / window.innerHeight, 0.12, 220);
     this.clock = new THREE.Clock();
     this.player = new Player(this.scene, input);
-    this.rig = new CameraRig(this.camera, this.player, input);
+    this.rig = new CameraRig(this.camera, this.player, input, settings);
+    this.pixie = new Pixie(this.scene, this.camera);
 
     this.player.onHurt = () => flashHurt();
     this.player.onDeath = () => this.onPlayerDeath();
     this.player.onPunch = () => this.resolvePunch();
+    this.player.onKill = (enemy) => this.grantKill(enemy);
 
     bindPause({
       onResume: () => this.setPaused(false),
@@ -70,6 +78,7 @@ export class Game {
         toast('Save exported.');
       },
       onMenu: () => this.returnToMenu(),
+      onSettings: () => this.openSettings(),
     });
     bindDeath(() => this.respawnVillage());
 
@@ -85,7 +94,7 @@ export class Game {
     this.campaignId = campaignId;
     this.save = save ? structuredClone(save) : emptyDestralSave();
     const campaign = CAMPAIGNS.find((c) => c.id === campaignId);
-    setLoading(true, campaignId === 'destral' ? 'Entering Hollowrest…' : 'Loading…');
+    setLoading(true, campaignId === 'destral' ? 'Entering Hollyhollow…' : 'Loading…');
     show('hud', false);
     try {
       if (!this.player.ready) await this.player.load(campaign.modelUrl);
@@ -139,6 +148,8 @@ export class Game {
     this.player.lockAnim = false;
     this.player.attacking = false;
     this.player.playLoop('Idle', 0);
+    this.pixie.reset();
+    this.pixie.group.position.copy(this.player.headPosition());
     this.rig.resetBehindPlayer();
     this.rig.snap();
   }
@@ -176,10 +187,27 @@ export class Game {
     const dt = Math.min(this.clock.getDelta(), 0.05);
     if (this.mode !== 'play') return;
 
+    if (isSettingsOpen()) {
+      if (this.input.pressed('cancel') || this.input.pressed('pause')) closeSettings();
+      else handleOverlayNav(this.input);
+      this.renderer.render(this.scene, this.camera);
+      this.drawHud();
+      return;
+    }
+
     if (this.talking) {
       handleOverlayNav(this.input);
       if (this.input.pressed('cancel') || this.input.pressed('pause')) this.closeTalk();
       this.player.mixer?.update(dt);
+      this.player.updateHeal(dt);
+      this.pixie.update(dt, {
+        player: this.player,
+        input: this.input,
+        world: this.world,
+        paused: true,
+        talking: true,
+        dead: this.player.dead,
+      });
       this.renderer.render(this.scene, this.camera);
       this.drawHud();
       return;
@@ -194,6 +222,7 @@ export class Game {
     if (this.paused) {
       handleOverlayNav(this.input);
       this.renderer.render(this.scene, this.camera);
+      this.drawHud();
       return;
     }
 
@@ -221,6 +250,14 @@ export class Game {
     this.world.update(dt, this);
     this.separateEnemies();
     this.rig.update(dt, this.world);
+    this.pixie.update(dt, {
+      player: this.player,
+      input: this.input,
+      world: this.world,
+      paused: false,
+      talking: false,
+      dead: this.player.dead,
+    });
     this.handleInteract();
     this.handleTriggers();
     this.drawHud();
@@ -233,10 +270,12 @@ export class Game {
       maxHealth: this.player.maxHealth,
       exp: this.player.exp,
       areaName: this.world?.name || '',
-      usingGamepad: this.input.usingGamepad,
+      usingGamepad: !!this.input.p1Pad,
       lookUsed: this.input.lookUsed,
-      prompt: this.nearestInteractable()?.prompt?.(this.input.usingGamepad) ?? '',
+      prompt: this.nearestInteractable()?.prompt?.(!!this.input.p1Pad) ?? '',
+      p2: this.input.settings.p2Index !== -2,
     });
+    updateSpriteHud(this.pixie.hud(), this.input);
   }
 
   nearestInteractable() {
@@ -287,16 +326,18 @@ export class Game {
       if (dirx * fwd.x + dirz * fwd.z < PLAYER.punchCone) continue;
       const killed = enemy.takeDamage(PLAYER.punchDamage, this.player.x, this.player.z);
       rumble(this.input, 0.35, 80);
-      if (killed) {
-        this.player.exp += enemy.exp;
-        this.save.data.defeated = Array.from(new Set([...(this.save.data.defeated || []), enemy.id]));
-        if (enemy.boss) {
-          this.save.data.bossDefeated = true;
-          toast('The cave-wight is slain. Hollowrest is safer — for now.');
-        } else {
-          toast(`+${enemy.exp} EXP`);
-        }
-      }
+      if (killed) this.grantKill(enemy);
+    }
+  }
+
+  grantKill(enemy) {
+    this.player.exp += enemy.exp;
+    this.save.data.defeated = Array.from(new Set([...(this.save.data.defeated || []), enemy.id]));
+    if (enemy.boss) {
+      this.save.data.bossDefeated = true;
+      toast('The cave-wight is slain. Hollyhollow is safer — for now.');
+    } else {
+      toast(`+${enemy.exp} EXP`);
     }
   }
 
@@ -353,10 +394,16 @@ export class Game {
     show('pause', paused);
     if (paused) {
       document.exitPointerLock?.();
+      closeSettings();
       this.capturePlayer();
       $('pause-sub').textContent = `${this.world?.name || ''} · EXP ${Math.floor(this.player.exp)}`;
       focusFirstButton($('pause'));
     }
+  }
+
+  openSettings() {
+    document.exitPointerLock?.();
+    showSettingsPanel();
   }
 
   onPlayerDeath() {
@@ -403,6 +450,7 @@ export class Game {
     show('pause', false);
     show('dialogue', false);
     show('death', false);
+    closeSettings();
     document.exitPointerLock?.();
   }
 

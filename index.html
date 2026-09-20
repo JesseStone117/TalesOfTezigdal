@@ -17,15 +17,16 @@
         <p class="lede">Choose a campaign</p>
         <div id="campaign-list" class="campaign-list"></div>
         <div class="menu-actions">
+          <button type="button" id="btn-settings">Settings</button>
           <button type="button" id="btn-import">Import Save</button>
           <button type="button" id="btn-export">Export Save</button>
         </div>
         <p id="gamepad-banner" class="gamepad-banner">
-          Plug in a controller anytime. Keyboard and mouse work too.
+          Plug in controllers anytime. Assign them in Settings.
         </p>
         <p class="controls-footnote">
-          Move: left stick / WASD · Look: right stick / mouse · Talk: A / E · Punch: X / Space ·
-          Pause: Start / Esc
+          P1: left stick / WASD · look: right stick / mouse · Talk A / E · Punch X / Space · Pause Start / Esc
+          · P2 Sprite: left stick / arrows aim · RT / C fire · Y / V heal
         </p>
         <p class="version" id="menu-version"></p>
       </div>
@@ -44,7 +45,7 @@
     <div id="loading" class="overlay hidden">
       <div class="menu-inner loading-inner">
         <p class="eyebrow">Tales of Tezigdal</p>
-        <h2 id="loading-title">Entering Hollowrest…</h2>
+        <h2 id="loading-title">Entering Hollyhollow…</h2>
         <div class="loading-bar"><div id="loading-fill"></div></div>
       </div>
     </div>
@@ -62,15 +63,21 @@
           </div>
         </div>
         <div class="hud-meta">
-          <div id="area-name" class="area-name">Hollowrest</div>
+          <div id="area-name" class="area-name">Hollyhollow</div>
           <div id="exp-text" class="exp-text">EXP 0</div>
         </div>
+      </div>
+      <div id="sprite-hud" class="sprite-hud hidden">
+        <div class="sprite-label">Sprite</div>
+        <div id="bolt-pips" class="bolt-pips"></div>
+        <div id="heal-cd" class="heal-cd ready">Heal ready</div>
       </div>
       <div id="hurt-vignette"></div>
       <div id="interact-prompt" class="prompt hidden"></div>
       <div id="look-hint" class="look-hint">Click the world to look around · Right stick also looks</div>
       <div id="control-hint" class="control-hint"></div>
     </div>
+    <div id="pixie-cursor" class="pixie-cursor hidden"></div>
 
     <div id="dialogue" class="overlay dialogue hidden">
       <div class="dialogue-card">
@@ -91,6 +98,7 @@
           <button type="button" id="pause-resume">Resume</button>
           <button type="button" id="pause-save">Save Game</button>
           <button type="button" id="pause-export">Export Save</button>
+          <button type="button" id="pause-settings">Settings</button>
           <button type="button" id="pause-menu">Return to Menu</button>
         </div>
       </div>
@@ -101,7 +109,35 @@
         <h2>Destral has fallen</h2>
         <p>The mountain bowl holds its dead only for a moment. Rise, and try the pass again.</p>
         <div class="stack-actions">
-          <button type="button" id="death-continue">Return to Hollowrest</button>
+          <button type="button" id="death-continue">Return to Hollyhollow</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="settings" class="overlay modal hidden">
+      <div class="modal-card settings-card">
+        <h2>Settings</h2>
+        <div class="settings-list">
+          <div class="settings-row">
+            <span>Fullscreen</span>
+            <button type="button" id="opt-fullscreen">Off</button>
+          </div>
+          <div class="settings-row">
+            <span>Invert vertical look</span>
+            <button type="button" id="opt-invert">On</button>
+          </div>
+          <div class="settings-row">
+            <span>Player 1 controller</span>
+            <button type="button" id="opt-p1">Keyboard &amp; Mouse</button>
+          </div>
+          <div class="settings-row">
+            <span>Player 2 controller</span>
+            <button type="button" id="opt-p2">Keyboard (arrows)</button>
+          </div>
+        </div>
+        <div class="stack-actions">
+          <button type="button" id="opt-swap">Swap controllers</button>
+          <button type="button" id="settings-back">Back</button>
         </div>
       </div>
     </div>

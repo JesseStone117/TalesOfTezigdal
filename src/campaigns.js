@@ -2,7 +2,7 @@ export const CAMPAIGNS = [
   {
     id: 'destral',
     name: 'Destral',
-    subtitle: 'The Hollowrest Descent',
+    subtitle: 'The Hollyhollow Descent',
     description:
       'A traveler arrives in a mountain-bound village, seeking the old stories of Tezigdal. The only road out is a cave that does not want to be walked.',
     available: true,
@@ -27,7 +27,7 @@ export const DESTRAL_NPCS = [
     x: 2.1,
     z: -1.4,
     greeting:
-      'You walk like someone who has come a long way to hear a name spoken correctly. Hollowrest still says it: Tezigdal.',
+      'You walk like someone who has come a long way to hear a name spoken correctly. Hollyhollow still says it: Tezigdal.',
     topics: [
       {
         prompt: 'What is Tezigdal?',
@@ -37,7 +37,7 @@ export const DESTRAL_NPCS = [
         ],
       },
       {
-        prompt: 'Tell me about Hollowrest.',
+        prompt: 'Tell me about Hollyhollow.',
         lines: [
           'We sit in a bowl the mountains made on purpose. Trade used to come through the cave pass, grain one way, copper the other. Then the pass soured, and the road became a rumor.',
           'We are not lost. We are tucked in. There is a difference, though the young do not always feel it.',
@@ -132,7 +132,7 @@ export const DESTRAL_NPCS = [
       },
     ],
     afterBoss:
-      'The iron-on-stone has gone quiet. I will not call you a fool for walking back out. Hollowrest owes you a bowl of stew, at least.',
+      'The iron-on-stone has gone quiet. I will not call you a fool for walking back out. Hollyhollow owes you a bowl of stew, at least.',
   },
   {
     id: 'sera',
@@ -148,7 +148,7 @@ export const DESTRAL_NPCS = [
         prompt: 'What does Tezigdal mean to you?',
         lines: [
           'A cloth is a telling. Warp and weft remember the hands that pulled them. Tezigdal is that, stretched over valleys. We weave so the name does not fray.',
-          'There is a pattern older than Hollowrest: a mountain ring, a single dark mouth, a figure walking in. I have never liked how often I dream it.',
+          'There is a pattern older than Hollyhollow: a mountain ring, a single dark mouth, a figure walking in. I have never liked how often I dream it.',
         ],
       },
       {

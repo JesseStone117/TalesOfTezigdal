@@ -32,6 +32,20 @@ export const INPUT = {
   uiRepeat: 0.22,
 };
 
+export const SPRITE = {
+  maxBolts: 5,
+  reload: 0.48,
+  fireRate: 0.11,
+  damage: 14,
+  speed: 34,
+  life: 1.4,
+  radius: 0.18,
+  healCooldown: 60,
+  healDuration: 5,
+  healAmount: 25,
+  cursorSpeed: 1.65,
+};
+
 export const COMBAT = {
   gruntHealth: 40,
   gruntDamage: 12,

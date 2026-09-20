@@ -34,6 +34,24 @@ export class Player {
     this.lantern.position.set(0.25, 1.5, 0.2);
     this.lantern.visible = false;
     this.group.add(this.lantern);
+    this.healLeft = 0;
+    this.healRate = 0;
+    this.onKill = null;
+    this.healGlow = new THREE.Mesh(
+      new THREE.SphereGeometry(0.85, 16, 12),
+      new THREE.MeshBasicMaterial({
+        color: 0x66c8ff,
+        transparent: true,
+        opacity: 0.18,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      }),
+    );
+    this.healGlow.position.y = 0.95;
+    this.healGlow.visible = false;
+    this.healLight = new THREE.PointLight(0x7ad4ff, 0, 6, 2);
+    this.healLight.position.y = 1.2;
+    this.group.add(this.healGlow, this.healLight);
   }
 
   get x() {
@@ -184,7 +202,30 @@ export class Player {
     const gy = world.heightAt(this.x, this.z);
     this.group.position.y += (gy - this.group.position.y) * Math.min(1, dt * 14);
 
+    this.updateHeal(dt);
     if (!this.attacking && this.input.pressed('punch')) this.startPunch();
+  }
+
+  startHeal(amount, duration) {
+    this.healLeft = duration;
+    this.healRate = amount / duration;
+    this.healGlow.visible = true;
+  }
+
+  updateHeal(dt) {
+    if (this.healLeft <= 0) {
+      this.healGlow.visible = false;
+      this.healLight.intensity = 0;
+      return;
+    }
+    this.healLeft -= dt;
+    if (!this.dead) {
+      this.health = Math.min(this.maxHealth, this.health + this.healRate * dt);
+    }
+    const pulse = 0.16 + Math.sin(performance.now() * 0.008) * 0.06;
+    this.healGlow.material.opacity = pulse;
+    this.healGlow.scale.setScalar(1.05 + Math.sin(performance.now() * 0.006) * 0.08);
+    this.healLight.intensity = 2.2 + pulse * 4;
   }
 
   startPunch() {

@@ -42,15 +42,23 @@ try {
     const g = window.__tot.game;
     return {
       area: g.world?.id,
+      areaName: g.world?.name,
       health: g.player.health,
       anims: Object.keys(g.player.actions),
       x: g.player.x,
       z: g.player.z,
       npcCount: g.world.npcs.length,
+      invertY: window.__tot.settings.invertY,
+      pixie: !!g.pixie,
     };
   });
+  if (state.invertY !== true) throw new Error('Invert Y should default to on');
+  if (!state.pixie) throw new Error('Sprite companion missing');
 
   if (state.area !== 'village') throw new Error(`Expected village, got ${state.area}`);
+  if (state.areaName && state.areaName !== 'Hollyhollow') {
+    throw new Error(`Expected Hollyhollow, got ${state.areaName}`);
+  }
   if (state.health !== 100) throw new Error(`Expected full health, got ${state.health}`);
   for (const name of ['Idle', 'Walk', 'Death', 'Punch_Left', 'Punch_Right']) {
     if (!state.anims.includes(name)) throw new Error(`Missing animation ${name}: ${state.anims.join(',')}`);
@@ -104,7 +112,7 @@ try {
   });
   await page.waitForSelector('#dialogue:not(.hidden)');
   const speech = await page.$eval('#dialogue-text', (el) => el.textContent);
-  if (!/Tezigdal|Hollowrest/i.test(speech)) throw new Error(`Unexpected dialogue: ${speech}`);
+  if (!/Tezigdal|Hollyhollow/i.test(speech)) throw new Error(`Unexpected dialogue: ${speech}`);
 
   await page.evaluate(() => window.__tot.game.closeTalk());
   await page.evaluate(() => {

@@ -440,6 +440,115 @@ button.primary {
   pointer-events: auto;
 }
 
+.settings-card {
+  width: min(520px, calc(100% - 40px));
+  text-align: left;
+}
+
+.settings-card h2 {
+  text-align: center;
+}
+
+.settings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 8px 0 18px;
+}
+
+.settings-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.settings-row span {
+  color: #d9cbb4;
+  font-size: 0.92rem;
+}
+
+.settings-row button {
+  min-width: 160px;
+  text-transform: none;
+  letter-spacing: 0.03em;
+}
+
+#settings {
+  z-index: 26;
+}
+
+.sprite-hud {
+  position: absolute;
+  left: 20px;
+  top: 78px;
+  min-width: 180px;
+}
+
+.sprite-label {
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #8ecfff;
+  text-shadow: 0 1px 4px #000;
+}
+
+.bolt-pips {
+  display: flex;
+  gap: 6px;
+  margin: 6px 0 4px;
+}
+
+.bolt-pip {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid rgba(120, 200, 255, 0.55);
+  background: rgba(20, 40, 60, 0.7);
+  box-shadow: 0 0 6px rgba(80, 180, 255, 0.15);
+}
+
+.bolt-pip.filled {
+  background: radial-gradient(circle at 35% 30%, #e7f7ff, #4db7ff 55%, #1d6dff);
+  box-shadow: 0 0 10px rgba(90, 200, 255, 0.85);
+}
+
+.bolt-pip.reloading {
+  background: linear-gradient(#4db7ff, #4db7ff) 0 100% / 100% var(--reload, 0%) no-repeat;
+}
+
+.heal-cd {
+  font-size: 0.78rem;
+  color: #9aa8b8;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.heal-cd.ready {
+  color: #8ecfff;
+}
+
+.pixie-cursor {
+  position: fixed;
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+  border: 2px solid rgba(150, 220, 255, 0.95);
+  border-radius: 50%;
+  box-shadow: 0 0 12px 3px rgba(70, 180, 255, 0.7), inset 0 0 8px rgba(180, 240, 255, 0.5);
+  pointer-events: none;
+  z-index: 12;
+}
+
+.pixie-cursor::after {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  background: rgba(180, 240, 255, 0.85);
+  box-shadow: 0 0 8px #7ad4ff;
+}
+
 @media (max-width: 640px) {
   .hud-top {
     flex-direction: column;

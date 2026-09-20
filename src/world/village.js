@@ -147,7 +147,7 @@ export function createVillage() {
 
   return {
     id: 'village',
-    name: 'Hollowrest',
+    name: 'Hollyhollow',
     group,
     npcs,
     enemies: [],
