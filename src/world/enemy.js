@@ -41,6 +41,7 @@ export class Enemy {
       boss,
     });
     this.group.add(this.body);
+    this.bodyBase = this.body.scale.x;
     this.hpBar = makeHpBar(boss);
     this.hpBar.position.y = boss ? 3.55 : 2.12;
     this.group.add(this.hpBar);
@@ -94,11 +95,7 @@ export class Enemy {
 
     this.cooldown = Math.max(0, this.cooldown - dt);
     this.hitFlash = Math.max(0, this.hitFlash - dt);
-    this.group.traverse((n) => {
-      if (n.isMesh && n.material?.isMeshStandardMaterial) {
-        n.material.emissiveIntensity = this.hitFlash > 0 ? 0.9 : 0.2;
-      }
-    });
+    this.body.scale.setScalar(this.bodyBase * (this.hitFlash > 0 ? 1.07 : 1));
 
     const dx = player.x - this.x;
     const dz = player.z - this.z;
@@ -171,17 +168,18 @@ export class Enemy {
   }
 }
 
+const hpBgMat = new THREE.MeshBasicMaterial({ color: 0x120909, depthTest: true });
+const hpFillGrunt = new THREE.MeshBasicMaterial({ color: 0xc4453c, depthTest: true });
+const hpFillBoss = new THREE.MeshBasicMaterial({ color: 0xd4b46a, depthTest: true });
+
 function makeHpBar(boss) {
   const width = boss ? 1.7 : 1.2;
   const group = new THREE.Group();
   group.userData.width = width;
-  const bg = new THREE.Mesh(
-    new THREE.PlaneGeometry(width + 0.1, 0.2),
-    new THREE.MeshBasicMaterial({ color: 0x120909, depthTest: true }),
-  );
+  const bg = new THREE.Mesh(new THREE.PlaneGeometry(width + 0.1, 0.2), hpBgMat);
   const fill = new THREE.Mesh(
     new THREE.PlaneGeometry(width, 0.13),
-    new THREE.MeshBasicMaterial({ color: boss ? 0xd4b46a : 0xc4453c, depthTest: true }),
+    boss ? hpFillBoss : hpFillGrunt,
   );
   fill.name = 'hpFill';
   fill.position.z = 0.012;

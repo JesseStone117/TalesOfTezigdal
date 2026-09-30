@@ -12,6 +12,7 @@ import {
   makeCottage,
   makeRock,
   makeSign,
+  makeTorch,
   makeTree,
   makeWell,
   villageHeight,
@@ -72,6 +73,14 @@ export function createVillage() {
   group.add(fire);
   flames.push(fire.getObjectByName('flame'));
   obstacles.push(circleObstacle(-3.6, 2.6, 0.55));
+
+  for (const [x, z] of [[-3.4, 12.5], [3.3, 22], [-3.2, 31.5]]) {
+    const lamp = makeTorch();
+    lamp.position.set(x, villageHeight(x, z), z);
+    group.add(lamp);
+    const flame = lamp.getObjectByName('flame');
+    if (flame) flames.push(flame);
+  }
 
   const trees = [
     [-24, -12], [-26, 2], [-23, 14], [-18, 24], [-10, 24],
@@ -241,17 +250,31 @@ function buildTerrain() {
   const rockDark = new THREE.Color(COLORS.rockDark);
   const snow = new THREE.Color(COLORS.snow);
   const c = new THREE.Color();
+  const flower = new THREE.Color(0xd2c06a);
+  const yard = new THREE.Color(0x8d7048);
 
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i);
     const z = pos.getZ(i);
     const y = villageHeight(x, z);
     pos.setY(i, y);
+    let nearHome = false;
+    for (let k = 0; k < COTTAGES.length; k++) {
+      const home = COTTAGES[k];
+      if ((x - home.x) * (x - home.x) + (z - home.z) * (z - home.z) < 28) {
+        nearHome = true;
+        break;
+      }
+    }
     if (isOnPath(x, z) && y < 1.4) c.copy(dirt);
+    else if (nearHome && y < 1.5) c.lerpColors(yard, dirt, 0.45);
     else if (y > 18) c.copy(snow);
     else if (y > 8) c.lerpColors(rock, rockDark, Math.min(1, (y - 8) / 8));
     else if (y > 1.6) c.lerpColors(grassDark, rock, (y - 1.6) / 6.4);
-    else c.lerpColors(grass, grassDark, (Math.sin(x * 0.4) + 1) * 0.25);
+    else {
+      c.lerpColors(grass, grassDark, (Math.sin(x * 0.35 + z * 0.2) + 1) * 0.28);
+      if (Math.sin(x * 1.7 + z * 2.3) > 0.78) c.lerp(flower, 0.4);
+    }
     colors[i * 3] = c.r;
     colors[i * 3 + 1] = c.g;
     colors[i * 3 + 2] = c.b;

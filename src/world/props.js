@@ -26,7 +26,48 @@ const shared = {
   torch: new THREE.MeshStandardMaterial({ color: 0x3a2a1c, roughness: 1 }),
   flame: new THREE.MeshBasicMaterial({ color: 0xff8a3a, transparent: true, opacity: 0.85 }),
   ember: new THREE.MeshBasicMaterial({ color: 0xffc56a }),
+  glass: new THREE.MeshStandardMaterial({
+    color: 0xd5e2cf,
+    roughness: 0.12,
+    metalness: 0.04,
+    transparent: true,
+    opacity: 0.55,
+  }),
+  hair: new THREE.MeshStandardMaterial({ color: 0x3a2a22, roughness: 0.9 }),
+  skin: new THREE.MeshStandardMaterial({ color: 0xe0c2a2, roughness: 0.7 }),
+  eye: new THREE.MeshBasicMaterial({ color: 0xff5533 }),
+  horn: new THREE.MeshStandardMaterial({ color: 0x2a2018, roughness: 0.55 }),
+  club: new THREE.MeshStandardMaterial({ color: 0x3a2a20, roughness: 0.8 }),
 };
+
+const reused = {
+  rock: new THREE.IcosahedronGeometry(0.55, 1),
+  fireStone: new THREE.DodecahedronGeometry(0.15, 0),
+  npcBody: new THREE.CapsuleGeometry(0.28, 0.7, 4, 8),
+  npcHead: new THREE.SphereGeometry(0.22, 10, 8),
+  npcHair: new THREE.SphereGeometry(0.24, 8, 6),
+  npcArm: new THREE.CapsuleGeometry(0.07, 0.36, 3, 5),
+  npcSash: new THREE.BoxGeometry(0.58, 0.16, 0.34),
+  creatureBody: new THREE.CapsuleGeometry(0.38, 0.55, 4, 8),
+  creatureHead: new THREE.SphereGeometry(0.28, 10, 8),
+  creatureEye: new THREE.SphereGeometry(0.06, 6, 6),
+  creatureArm: new THREE.CapsuleGeometry(0.09, 0.28, 3, 5),
+  horn: new THREE.ConeGeometry(0.08, 0.45, 6),
+  club: new THREE.CylinderGeometry(0.08, 0.16, 1.4, 6),
+  glass: new THREE.BoxGeometry(0.32, 0.26, 0.04),
+};
+
+const matCache = new Map();
+
+function cachedStandard(color, roughness = 0.8, emissive = 0, emissiveIntensity = 0) {
+  const key = `${color}:${roughness}:${emissive}:${emissiveIntensity}`;
+  let mat = matCache.get(key);
+  if (!mat) {
+    mat = new THREE.MeshStandardMaterial({ color, roughness, emissive, emissiveIntensity });
+    matCache.set(key, mat);
+  }
+  return mat;
+}
 
 export function enableShadows(object) {
   object.traverse((node) => {
@@ -39,6 +80,7 @@ export function enableShadows(object) {
 
 export function makeCottage(w, d, h) {
   const group = new THREE.Group();
+  group.userData.kind = 'cottage';
   const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), shared.plaster);
   body.position.y = h / 2;
   const frame = new THREE.Mesh(
@@ -52,40 +94,70 @@ export function makeCottage(w, d, h) {
   );
   roof.position.y = h + h * 0.18;
   roof.rotation.y = Math.PI / 4;
+  const beam = new THREE.Mesh(new THREE.BoxGeometry(w + 0.16, 0.14, 0.16), shared.timber);
+  beam.position.set(0, h * 0.92, d / 2 + 0.02);
   const door = new THREE.Mesh(new THREE.BoxGeometry(0.55, 1.15, 0.08), shared.timber);
   door.position.set(0, 0.58, d / 2 + 0.02);
-  const window = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.45, 0.06), shared.timber);
-  window.position.set(w * 0.22, h * 0.55, d / 2 + 0.02);
-  group.add(body, frame, roof, door, window);
+  const step = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.12, 0.4), shared.stone);
+  step.position.set(0, 0.06, d / 2 + 0.2);
+  const windowFrame = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.42, 0.06), shared.timber);
+  windowFrame.position.set(w * 0.24, h * 0.58, d / 2 + 0.02);
+  const windowGlass = new THREE.Mesh(reused.glass, shared.glass);
+  windowGlass.position.set(w * 0.24, h * 0.58, d / 2 + 0.05);
+  const windowFrame2 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.42, 0.06), shared.timber);
+  windowFrame2.position.set(-w * 0.24, h * 0.58, d / 2 + 0.02);
+  const windowGlass2 = new THREE.Mesh(reused.glass, shared.glass);
+  windowGlass2.position.set(-w * 0.24, h * 0.58, d / 2 + 0.05);
+  const chimney = new THREE.Mesh(new THREE.BoxGeometry(0.46, h * 0.5, 0.46), shared.stone);
+  chimney.position.set(-w * 0.28, h + h * 0.1, -d * 0.16);
+  const cap = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.1, 0.62), shared.rockDark);
+  cap.position.set(-w * 0.28, h + h * 0.36, -d * 0.16);
+  group.add(body, frame, roof, beam, door, step, windowFrame, windowGlass, windowFrame2, windowGlass2, chimney, cap);
   enableShadows(group);
   return group;
 }
 
 export function makeTree(scale = 1) {
   const group = new THREE.Group();
-  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.2, 1.4, 6), shared.bark);
-  trunk.position.y = 0.7;
-  const leaves = new THREE.Mesh(new THREE.ConeGeometry(1.1, 2.1, 7), Math.random() > 0.5 ? shared.leaf : shared.leaf2);
-  leaves.position.y = 2.1;
-  const leaves2 = new THREE.Mesh(new THREE.ConeGeometry(0.8, 1.5, 7), shared.leaf);
-  leaves2.position.y = 2.8;
-  group.add(trunk, leaves, leaves2);
+  group.userData.kind = 'tree';
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.22, 1.5, 6), shared.bark);
+  trunk.position.y = 0.75;
+  const roots = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.4, 0.28, 6), shared.bark);
+  roots.position.y = 0.1;
+  const leaves = new THREE.Mesh(new THREE.ConeGeometry(1.1, 1.8, 7), Math.random() > 0.5 ? shared.leaf : shared.leaf2);
+  leaves.position.y = 2.05;
+  const leaves2 = new THREE.Mesh(new THREE.ConeGeometry(0.82, 1.35, 7), shared.leaf);
+  leaves2.position.y = 2.75;
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.42, 0.85, 6), shared.leaf2);
+  tip.position.y = 3.4;
+  group.add(trunk, roots, leaves, leaves2, tip);
   group.scale.setScalar(scale);
   enableShadows(group);
   return group;
 }
 
 export function makeRock(scale = 1) {
-  const mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(0.7, 0), Math.random() > 0.5 ? shared.rock : shared.rockDark);
-  mesh.scale.set(scale * (0.8 + Math.random() * 0.6), scale * (0.45 + Math.random() * 0.4), scale * (0.8 + Math.random() * 0.5));
-  mesh.rotation.set(Math.random(), Math.random(), Math.random());
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  return mesh;
+  const group = new THREE.Group();
+  group.userData.kind = 'rock';
+  const main = new THREE.Mesh(reused.rock, Math.random() > 0.5 ? shared.rock : shared.rockDark);
+  main.scale.set(1, 0.7, 0.92);
+  const chip = new THREE.Mesh(reused.rock, shared.rockDark);
+  chip.scale.set(0.48, 0.36, 0.44);
+  chip.position.set(0.46, -0.02, 0.18);
+  group.add(main, chip);
+  group.scale.set(
+    scale * (0.85 + Math.random() * 0.45),
+    scale * (0.55 + Math.random() * 0.35),
+    scale * (0.85 + Math.random() * 0.4),
+  );
+  group.rotation.set(Math.random(), Math.random(), Math.random());
+  enableShadows(group);
+  return group;
 }
 
 export function makeWell() {
   const group = new THREE.Group();
+  group.userData.kind = 'well';
   const ring = new THREE.Mesh(new THREE.CylinderGeometry(1.05, 1.15, 0.7, 14), shared.stone);
   ring.position.y = 0.35;
   const inner = new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.72, 0.2, 14), shared.water);
@@ -96,13 +168,18 @@ export function makeWell() {
   postR.position.set(0.7, 1.0, 0);
   const beam = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.12, 0.12), shared.timber);
   beam.position.y = 1.62;
-  group.add(ring, inner, postL, postR, beam);
+  const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.72, 5), shared.timber);
+  rope.position.set(0.18, 1.2, 0);
+  const bucket = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.13, 0.22, 8), shared.stone);
+  bucket.position.set(0.18, 0.78, 0);
+  group.add(ring, inner, postL, postR, beam, rope, bucket);
   enableShadows(group);
   return group;
 }
 
 export function makeArch() {
   const group = new THREE.Group();
+  group.userData.kind = 'arch';
   const mat = shared.rockDark;
   const left = new THREE.Mesh(new THREE.BoxGeometry(1.6, 6.2, 2.2), mat);
   const right = left.clone();
@@ -110,37 +187,58 @@ export function makeArch() {
   right.position.set(3.1, 3.1, 0);
   const top = new THREE.Mesh(new THREE.BoxGeometry(7.8, 1.6, 2.6), mat);
   top.position.set(0, 6.4, 0);
-  group.add(left, right, top);
+  const foot = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.32, 2.4), shared.stone);
+  const footR = foot.clone();
+  foot.position.set(-3.1, 0.16, 0);
+  footR.position.set(3.1, 0.16, 0);
+  const key = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.46, 2.7), shared.stone);
+  key.position.set(0, 5.55, 0);
+  group.add(left, right, top, foot, footR, key);
   enableShadows(group);
   return group;
 }
 
 export function makeTorch() {
   const group = new THREE.Group();
+  group.userData.kind = 'torch';
   const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 1.2, 6), shared.torch);
   pole.position.y = 0.6;
+  const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.07, 0.12, 6), shared.rockDark);
+  cup.position.y = 1.16;
+  const bracket = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.28), shared.rockDark);
+  bracket.position.set(0, 0.9, -0.12);
   const flame = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.34, 6), shared.flame);
-  flame.position.y = 1.3;
+  flame.position.y = 1.32;
   flame.name = 'flame';
-  const light = new THREE.PointLight(0xff9a4a, 4.6, 15, 1.5);
-  light.position.y = 1.32;
-  group.add(pole, flame, light);
+  const light = new THREE.PointLight(0xff9a4a, 4.2, 14, 1.6);
+  light.castShadow = false;
+  light.position.y = 1.34;
+  group.add(pole, cup, bracket, flame, light);
   return group;
 }
 
 export function makeCampfire() {
   const group = new THREE.Group();
+  group.userData.kind = 'campfire';
   for (let i = 0; i < 4; i++) {
     const log = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 0.9, 5), shared.timber);
     log.rotation.z = Math.PI / 2;
     log.rotation.y = (i * Math.PI) / 4;
-    log.position.y = 0.08;
+    log.position.y = 0.1;
     group.add(log);
+  }
+  for (let i = 0; i < 5; i++) {
+    const stone = new THREE.Mesh(reused.fireStone, i % 2 ? shared.rock : shared.rockDark);
+    const a = (i / 5) * Math.PI * 2;
+    stone.position.set(Math.cos(a) * 0.46, 0.08, Math.sin(a) * 0.46);
+    stone.rotation.y = a;
+    group.add(stone);
   }
   const flame = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.7, 6), shared.flame);
   flame.position.y = 0.5;
   flame.name = 'flame';
   const light = new THREE.PointLight(0xff7a32, 2.8, 10, 2);
+  light.castShadow = false;
   light.position.y = 0.6;
   group.add(flame, light);
   return group;
@@ -148,57 +246,67 @@ export function makeCampfire() {
 
 export function makeSign() {
   const group = new THREE.Group();
-  const post = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.3, 0.1), shared.timber);
-  post.position.y = 0.65;
-  const board = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.55, 0.08), shared.timber);
-  board.position.y = 1.2;
-  group.add(post, board);
+  group.userData.kind = 'sign';
+  const post = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.35, 0.1), shared.timber);
+  post.position.y = 0.68;
+  const board = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.55, 0.08), shared.plaster);
+  board.position.y = 1.22;
+  const trim = new THREE.Mesh(new THREE.BoxGeometry(1.22, 0.08, 0.1), shared.timber);
+  trim.position.y = 1.48;
+  const brace = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.42, 0.08), shared.timber);
+  brace.position.set(0.32, 0.95, 0);
+  brace.rotation.z = 0.45;
+  group.add(post, board, trim, brace);
   enableShadows(group);
   return group;
 }
 
 export function makeNpcMesh(color, accent) {
   const group = new THREE.Group();
-  const body = new THREE.Mesh(
-    new THREE.CapsuleGeometry(0.28, 0.7, 4, 8),
-    new THREE.MeshStandardMaterial({ color, roughness: 0.85 }),
-  );
+  group.userData.kind = 'villager';
+  const cloth = cachedStandard(color, 0.85);
+  const body = new THREE.Mesh(reused.npcBody, cloth);
   body.position.y = 0.85;
-  const head = new THREE.Mesh(
-    new THREE.SphereGeometry(0.22, 10, 8),
-    new THREE.MeshStandardMaterial({ color: 0xe0c2a2, roughness: 0.7 }),
-  );
+  const head = new THREE.Mesh(reused.npcHead, shared.skin);
   head.position.y = 1.48;
-  const sash = new THREE.Mesh(
-    new THREE.BoxGeometry(0.58, 0.18, 0.36),
-    new THREE.MeshStandardMaterial({ color: accent, roughness: 0.8 }),
-  );
+  const hair = new THREE.Mesh(reused.npcHair, shared.hair);
+  hair.position.y = 1.6;
+  hair.scale.y = 0.72;
+  const sash = new THREE.Mesh(reused.npcSash, cachedStandard(accent, 0.8));
   sash.position.y = 1.05;
-  group.add(body, head, sash);
+  const armL = new THREE.Mesh(reused.npcArm, cloth);
+  const armR = new THREE.Mesh(reused.npcArm, cloth);
+  armL.position.set(-0.34, 0.95, 0);
+  armR.position.set(0.34, 0.95, 0);
+  armL.rotation.z = 0.18;
+  armR.rotation.z = -0.18;
+  group.add(body, head, hair, sash, armL, armR);
   enableShadows(group);
   return group;
 }
 
 export function makeCreature({ color, scale = 1, horns = false, boss = false }) {
   const group = new THREE.Group();
-  const mat = new THREE.MeshStandardMaterial({
-    color,
-    roughness: 0.7,
-    emissive: color,
-    emissiveIntensity: 0.2,
-  });
-  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.38, 0.55, 4, 8), mat);
+  group.userData.kind = 'creature';
+  const mat = cachedStandard(color, 0.7, color, 0.18);
+  const body = new THREE.Mesh(reused.creatureBody, mat);
   body.position.y = 0.7;
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.28, 10, 8), mat);
+  const head = new THREE.Mesh(reused.creatureHead, mat);
   head.position.y = 1.28;
-  const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 6), new THREE.MeshBasicMaterial({ color: 0xff5533 }));
-  const eyeR = eyeL.clone();
+  const eyeL = new THREE.Mesh(reused.creatureEye, shared.eye);
+  const eyeR = new THREE.Mesh(reused.creatureEye, shared.eye);
   eyeL.position.set(-0.1, 1.32, 0.22);
   eyeR.position.set(0.1, 1.32, 0.22);
-  group.add(body, head, eyeL, eyeR);
+  const armL = new THREE.Mesh(reused.creatureArm, mat);
+  const armR = new THREE.Mesh(reused.creatureArm, mat);
+  armL.position.set(-0.42, 0.82, 0.06);
+  armR.position.set(0.42, 0.82, 0.06);
+  armL.rotation.z = 0.7;
+  armR.rotation.z = -0.7;
+  group.add(body, head, eyeL, eyeR, armL, armR);
   if (horns) {
-    const horn = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.45, 6), new THREE.MeshStandardMaterial({ color: 0x2a2018 }));
-    const horn2 = horn.clone();
+    const horn = new THREE.Mesh(reused.horn, shared.horn);
+    const horn2 = new THREE.Mesh(reused.horn, shared.horn);
     horn.position.set(-0.18, 1.58, 0);
     horn2.position.set(0.18, 1.58, 0);
     horn.rotation.z = 0.4;
@@ -206,7 +314,7 @@ export function makeCreature({ color, scale = 1, horns = false, boss = false }) 
     group.add(horn, horn2);
   }
   if (boss) {
-    const club = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.16, 1.4, 6), new THREE.MeshStandardMaterial({ color: 0x3a2a20 }));
+    const club = new THREE.Mesh(reused.club, shared.club);
     club.position.set(0.55, 0.9, 0.1);
     club.rotation.z = -0.5;
     group.add(club);

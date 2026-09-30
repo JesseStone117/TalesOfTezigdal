@@ -67,10 +67,16 @@ export function createCave(saveData) {
   const defeated = new Set(saveData.defeated || []);
   const secretOpened = !!saveData.secretOpened;
 
-  const floorMat = new THREE.MeshStandardMaterial({ color: 0x4a433c, roughness: 0.92 });
-  const deepFloorMat = new THREE.MeshStandardMaterial({ color: 0x5c564c, roughness: 0.9 });
-  const wallMat = new THREE.MeshStandardMaterial({ color: 0x2c2826, roughness: 1, flatShading: true });
-  const ceilMat = new THREE.MeshStandardMaterial({ color: 0x161312, roughness: 1 });
+  const floorMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.94 });
+  floorMat.userData.palette = PALETTE.floor;
+  floorMat.userData.surface = 'floor';
+  const deepFloorMat = floorMat;
+  const wallMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, flatShading: true });
+  wallMat.userData.palette = PALETTE.wall;
+  wallMat.userData.surface = 'wall';
+  const ceilMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
+  ceilMat.userData.palette = PALETTE.ceil;
+  ceilMat.userData.surface = 'ceiling';
   const stoneMat = new THREE.MeshStandardMaterial({ color: 0x3a3633, roughness: 0.88, flatShading: true });
   const buttonMat = new THREE.MeshStandardMaterial({
     color: 0x5a534c,
@@ -284,9 +290,11 @@ function buildDeeps(ctx, enemies, defeated, doorZ) {
   placeTorch(ctx, 16, 236, -3);
   placeTorch(ctx, 0, 248, 3.5);
   const cavernLight = new THREE.PointLight(0xffc19a, 4.4, 34, 1.4);
+  cavernLight.castShadow = false;
   cavernLight.position.set(0, 5.5, cavernZ);
   ctx.group.add(cavernLight);
   const cavernFill = new THREE.PointLight(0x8899bb, 2.2, 30, 1.6);
+  cavernFill.castShadow = false;
   cavernFill.position.set(-10, 6, 240);
   ctx.group.add(cavernFill);
 
@@ -337,7 +345,7 @@ function spawnEnemy(group, enemies, defeated, def) {
 }
 
 function addFloor(ctx, x, z, w, d, y, deep = false) {
-  addBox(ctx.group, deep && ctx.deepFloorMat ? ctx.deepFloorMat : ctx.floorMat, w, 0.4, d, x, y - 0.2, z, true);
+  addBox(ctx.group, ctx.floorMat, w, 0.4, d, x, y - 0.2, z, true, deep ? PALETTE.deep : null);
   ctx.surfaces.push({
     kind: 'flat',
     minX: x - w / 2,
@@ -352,8 +360,10 @@ function addRamp(ctx, x, z0, z1, w, y0, y1, deep = false) {
   const len = z1 - z0;
   const dy = y1 - y0;
   const hyp = Math.hypot(len, dy);
-  const mat = deep && ctx.deepFloorMat ? ctx.deepFloorMat : ctx.floorMat;
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, 0.35, hyp), mat);
+  const geo = new THREE.BoxGeometry(w, 0.35, hyp);
+  paintVary(geo, x, (y0 + y1) / 2, (z0 + z1) / 2, deep ? PALETTE.deep : PALETTE.floor);
+  const mesh = new THREE.Mesh(geo, ctx.floorMat);
+  mesh.userData.surface = 'floor';
   mesh.rotation.x = -Math.atan2(dy, len);
   mesh.position.set(x, (y0 + y1) / 2, (z0 + z1) / 2);
   enableShadows(mesh);
@@ -513,14 +523,42 @@ function makeStoneButton(gemMat) {
   return group;
 }
 
-function addBox(group, mat, w, h, d, x, y, z, shadow) {
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+function addBox(group, mat, w, h, d, x, y, z, shadow, palette) {
+  const geo = new THREE.BoxGeometry(w, h, d);
+  const colors = palette || mat.userData.palette;
+  if (colors) paintVary(geo, x, y, z, colors);
+  const mesh = new THREE.Mesh(geo, mat);
   mesh.position.set(x, y, z);
+  if (mat.userData.surface) mesh.userData.surface = mat.userData.surface;
   if (shadow) enableShadows(mesh);
   else mesh.receiveShadow = true;
   group.add(mesh);
   return mesh;
 }
+
+function paintVary(geo, x, y, z, palette) {
+  const pos = geo.attributes.position;
+  const colors = new Float32Array(pos.count * 3);
+  const tint = new THREE.Color();
+  for (let i = 0; i < pos.count; i++) {
+    const px = pos.getX(i) + x;
+    const py = pos.getY(i) + y;
+    const pz = pos.getZ(i) + z;
+    const idx = Math.abs(i + Math.floor(px * 1.7) + Math.floor(py * 2.2) + Math.floor(pz * 1.3)) % palette.length;
+    tint.copy(palette[idx]);
+    colors[i * 3] = tint.r;
+    colors[i * 3 + 1] = tint.g;
+    colors[i * 3 + 2] = tint.b;
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+}
+
+const PALETTE = {
+  floor: ['#4e463e', '#6a5e50', '#3c352f', '#7a6c5c', '#564c42'].map((hex) => new THREE.Color(hex)),
+  deep: ['#3a342e', '#524a40', '#2a2622', '#61584c', '#453e36'].map((hex) => new THREE.Color(hex)),
+  wall: ['#2c2826', '#3f3832', '#231f1c', '#514840', '#342e2a'].map((hex) => new THREE.Color(hex)),
+  ceil: ['#161312', '#241e1b', '#100e0c', '#2c2622'].map((hex) => new THREE.Color(hex)),
+};
 
 function heightAt(surfaces, x, z) {
   let best = -99;

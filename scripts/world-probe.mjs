@@ -1,5 +1,6 @@
 import { PLAYER } from '../src/config.js';
 import { caveWalkways, createCave } from '../src/world/cave.js';
+import { makeCreature } from '../src/world/props.js';
 import { createVillage } from '../src/world/village.js';
 
 const STEP = 0.32;
@@ -188,6 +189,161 @@ function runTown() {
   }, null, 2));
 }
 
+function countMeshes(obj) {
+  let n = 0;
+  obj.traverse((child) => {
+    if (child.isMesh) n += 1;
+  });
+  return n;
+}
+
+function findKind(group, kind) {
+  let found = null;
+  group.traverse((obj) => {
+    if (!found && obj.userData?.kind === kind) found = obj;
+  });
+  return found;
+}
+
+function colorSpread(mesh) {
+  const attr = mesh.geometry?.getAttribute?.('color');
+  if (!attr) return 0;
+  const seen = new Set();
+  for (let i = 0; i < attr.count; i++) {
+    seen.add(`${attr.getX(i).toFixed(2)},${attr.getY(i).toFixed(2)},${attr.getZ(i).toFixed(2)}`);
+    if (seen.size > 4) break;
+  }
+  return seen.size;
+}
+
+function uniqueMaterials(group) {
+  const ids = new Set();
+  group.traverse((obj) => {
+    if (!obj.isMesh || !obj.material) return;
+    const list = Array.isArray(obj.material) ? obj.material : [obj.material];
+    for (const mat of list) ids.add(mat.uuid);
+  });
+  return ids.size;
+}
+
+function lightCensus(group) {
+  let points = 0;
+  let pointShadows = 0;
+  let dirShadows = 0;
+  group.traverse((obj) => {
+    if (obj.isPointLight) {
+      points += 1;
+      if (obj.castShadow) pointShadows += 1;
+    }
+    if (obj.isDirectionalLight && obj.castShadow) dirShadows += 1;
+  });
+  return { points, pointShadows, dirShadows };
+}
+
+function runAssets() {
+  const village = createVillage();
+  const cave = createCave({ defeated: [], secretOpened: false });
+  const expect = (label, obj, minMeshes) => {
+    if (!obj) throw new Error(`missing ${label}`);
+    const meshes = countMeshes(obj);
+    if (meshes <= minMeshes) throw new Error(`${label} has ${meshes} meshes, need more than ${minMeshes}`);
+    return meshes;
+  };
+  const counts = {
+    cottage: expect('cottage', findKind(village.group, 'cottage'), 5),
+    tree: expect('tree', findKind(village.group, 'tree'), 3),
+    rock: expect('rock', findKind(village.group, 'rock') || findKind(cave.group, 'rock'), 1),
+    well: expect('well', findKind(village.group, 'well'), 5),
+    arch: expect('arch', findKind(village.group, 'arch'), 3),
+    torch: expect('torch', findKind(cave.group, 'torch'), 2),
+    campfire: expect('campfire', findKind(village.group, 'campfire'), 5),
+    sign: expect('sign', findKind(village.group, 'sign'), 2),
+    villager: expect('villager', findKind(village.group, 'villager'), 3),
+    creature: expect('creature', cave.enemies[0]?.body, 4),
+    basic: expect('basic creature', makeCreature({ color: 0x4a3a58 }), 4),
+  };
+  const rock = findKind(cave.group, 'rock') || findKind(village.group, 'rock');
+  let indices = 0;
+  rock.traverse((obj) => {
+    if (!obj.isMesh || !obj.geometry) return;
+    const geo = obj.geometry;
+    const n = geo.index ? geo.index.count : (geo.attributes.position?.count ?? 0);
+    indices = Math.max(indices, n);
+  });
+  if (indices <= 60 && counts.rock <= 1) throw new Error(`rock is still a detail-0 icosahedron (${indices} indices)`);
+
+  const floors = [];
+  const walls = [];
+  const ceilings = [];
+  cave.group.traverse((obj) => {
+    if (!obj.isMesh) return;
+    if (obj.userData.surface === 'floor') floors.push(obj);
+    if (obj.userData.surface === 'wall') walls.push(obj);
+    if (obj.userData.surface === 'ceiling') ceilings.push(obj);
+  });
+  if (!floors.length || !walls.length || !ceilings.length) throw new Error('cave floor, wall, or ceiling surfaces missing');
+  const floorColors = Math.max(...floors.map(colorSpread));
+  const wallColors = Math.max(...walls.map(colorSpread));
+  const ceilingColors = Math.max(...ceilings.map(colorSpread));
+  if (floorColors < 2) throw new Error(`cave floor colors ${floorColors}`);
+  if (wallColors < 2) throw new Error(`cave wall colors ${wallColors}`);
+  if (ceilingColors < 2) throw new Error(`cave ceiling colors ${ceilingColors}`);
+  const terrainColors = colorSpread(village.terrainMesh);
+  if (terrainColors < 2) throw new Error(`village terrain colors ${terrainColors}`);
+
+  console.log(JSON.stringify({
+    ok: true,
+    counts,
+    rockIndices: indices,
+    floorColors,
+    wallColors,
+    ceilingColors,
+    terrainColors,
+    floors: floors.length,
+    walls: walls.length,
+  }, null, 2));
+}
+
+function runPerf() {
+  const samples = [];
+  for (let pass = 0; pass < 2; pass++) {
+    const t0 = performance.now();
+    const village = createVillage();
+    const cave = createCave({ defeated: [], secretOpened: false });
+    let x = village.spawn.x;
+    let z = village.spawn.z;
+    for (let i = 0; i < 150; i++) {
+      const res = village.resolve(x, z, x + 0.15, z + 0.28, PLAYER.radius);
+      x = res.x;
+      z = res.z;
+    }
+    x = 0;
+    z = 4;
+    for (let i = 0; i < 150; i++) {
+      const res = cave.resolve(x, z, x, z + 0.32, PLAYER.radius);
+      x = res.x;
+      z = res.z;
+    }
+    const ms = performance.now() - t0;
+    const villageLights = lightCensus(village.group);
+    const caveLights = lightCensus(cave.group);
+    const villageMats = uniqueMaterials(village.group);
+    const caveMats = uniqueMaterials(cave.group);
+    const verts = village.terrainMesh.geometry.attributes.position.count;
+    const row = { pass, ms: Math.round(ms), villageLights, caveLights, villageMats, caveMats, verts };
+    samples.push(row);
+    if (ms >= 5000) throw new Error(`build+steps took ${ms.toFixed(0)}ms`);
+    if (villageLights.points > 6) throw new Error(`village point lights ${villageLights.points}`);
+    if (caveLights.points > 24) throw new Error(`cave point lights ${caveLights.points}`);
+    if (villageLights.pointShadows || caveLights.pointShadows) throw new Error('point light casts shadow');
+    if (villageLights.dirShadows > 1 || caveLights.dirShadows > 1) throw new Error('more than one shadow directional');
+    if (verts > 50000) throw new Error(`terrain verts ${verts}`);
+    if (villageMats >= 40) throw new Error(`village materials ${villageMats}`);
+    if (caveMats >= 30) throw new Error(`cave materials ${caveMats}`);
+  }
+  console.log(JSON.stringify({ ok: true, samples }, null, 2));
+}
+
 const mode = process.argv[2] || 'walkways';
 if (mode === 'walkways' || mode === 'all') {
   for (let i = 0; i < BUILDS; i++) runOnce(i);
@@ -208,3 +364,5 @@ if (mode === 'town' || mode === 'all') {
   runTown();
   runTown();
 }
+if (mode === 'assets' || mode === 'all') runAssets();
+if (mode === 'perf' || mode === 'all') runPerf();
