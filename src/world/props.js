@@ -55,6 +55,8 @@ const reused = {
   horn: new THREE.ConeGeometry(0.08, 0.45, 6),
   club: new THREE.CylinderGeometry(0.08, 0.16, 1.4, 6),
   glass: new THREE.BoxGeometry(0.32, 0.26, 0.04),
+  post: new THREE.BoxGeometry(0.12, 1, 0.12),
+  hat: new THREE.CylinderGeometry(0.3, 0.3, 0.05, 8),
 };
 
 const matCache = new Map();
@@ -88,12 +90,19 @@ export function makeCottage(w, d, h) {
     shared.timber,
   );
   frame.position.y = 0.1;
-  const roof = new THREE.Mesh(
-    new THREE.ConeGeometry(Math.max(w, d) * 0.78, h * 0.55, 4),
-    shared.thatch,
-  );
-  roof.position.y = h + h * 0.18;
-  roof.rotation.y = Math.PI / 4;
+  const rise = h * 0.42;
+  const pitch = Math.atan2(rise, d * 0.5);
+  const slopeGeo = new THREE.BoxGeometry(w + 0.9, 0.14, Math.hypot(d * 0.5, rise) + 0.15);
+  const roofN = new THREE.Mesh(slopeGeo, shared.thatch);
+  const roofS = new THREE.Mesh(slopeGeo, shared.thatch);
+  roofN.position.set(0, h + rise * 0.48, d * 0.22);
+  roofS.position.set(0, h + rise * 0.48, -d * 0.22);
+  roofN.rotation.x = pitch;
+  roofS.rotation.x = -pitch;
+  const ridge = new THREE.Mesh(new THREE.BoxGeometry(w + 0.15, 0.1, 0.16), shared.timber);
+  ridge.position.y = h + rise * 0.92;
+  const band = new THREE.Mesh(new THREE.BoxGeometry(w + 0.06, 0.1, d + 0.06), shared.timber);
+  band.position.y = h * 0.62;
   const beam = new THREE.Mesh(new THREE.BoxGeometry(w + 0.16, 0.14, 0.16), shared.timber);
   beam.position.set(0, h * 0.92, d / 2 + 0.02);
   const door = new THREE.Mesh(new THREE.BoxGeometry(0.55, 1.15, 0.08), shared.timber);
@@ -112,7 +121,15 @@ export function makeCottage(w, d, h) {
   chimney.position.set(-w * 0.28, h + h * 0.1, -d * 0.16);
   const cap = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.1, 0.62), shared.rockDark);
   cap.position.set(-w * 0.28, h + h * 0.36, -d * 0.16);
-  group.add(body, frame, roof, beam, door, step, windowFrame, windowGlass, windowFrame2, windowGlass2, chimney, cap);
+  group.add(body, frame, roofN, roofS, ridge, band, beam, door, step, windowFrame, windowGlass, windowFrame2, windowGlass2, chimney, cap);
+  for (const sx of [-1, 1]) {
+    for (const sz of [-1, 1]) {
+      const post = new THREE.Mesh(reused.post, shared.timber);
+      post.scale.y = h;
+      post.position.set(sx * w * 0.5, h * 0.5, sz * d * 0.5);
+      group.add(post);
+    }
+  }
   enableShadows(group);
   return group;
 }
@@ -274,13 +291,15 @@ export function makeNpcMesh(color, accent) {
   hair.scale.y = 0.72;
   const sash = new THREE.Mesh(reused.npcSash, cachedStandard(accent, 0.8));
   sash.position.y = 1.05;
+  const hat = new THREE.Mesh(reused.hat, shared.timber);
+  hat.position.y = 1.64;
   const armL = new THREE.Mesh(reused.npcArm, cloth);
   const armR = new THREE.Mesh(reused.npcArm, cloth);
   armL.position.set(-0.34, 0.95, 0);
   armR.position.set(0.34, 0.95, 0);
   armL.rotation.z = 0.18;
   armR.rotation.z = -0.18;
-  group.add(body, head, hair, sash, armL, armR);
+  group.add(body, head, hair, hat, sash, armL, armR);
   enableShadows(group);
   return group;
 }

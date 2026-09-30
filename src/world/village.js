@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { COLORS } from '../config.js';
+import { fbm } from '../utils.js';
 import { DESTRAL_NPCS } from '../campaigns.js';
 import { aabbObstacle, circleObstacle, resolveMove } from './collision.js';
 import { Npc } from './npc.js';
@@ -163,7 +164,8 @@ export function createVillage() {
   sun.shadow.camera.right = 70;
   sun.shadow.camera.top = 70;
   sun.shadow.camera.bottom = -70;
-  sun.shadow.bias = -0.0004;
+  sun.shadow.bias = -0.0002;
+  sun.shadow.normalBias = 0.04;
   group.add(hemi, sun);
 
   const fill = new THREE.DirectionalLight(0x88a0c8, 0.25);
@@ -238,7 +240,7 @@ function aabbAround(x, z, rot, hw, hd) {
 
 function buildTerrain() {
   const size = 140;
-  const seg = 120;
+  const seg = 150;
   const geo = new THREE.PlaneGeometry(size, size, seg, seg);
   geo.rotateX(-Math.PI / 2);
   const pos = geo.attributes.position;
@@ -272,8 +274,8 @@ function buildTerrain() {
     else if (y > 8) c.lerpColors(rock, rockDark, Math.min(1, (y - 8) / 8));
     else if (y > 1.6) c.lerpColors(grassDark, rock, (y - 1.6) / 6.4);
     else {
-      c.lerpColors(grass, grassDark, (Math.sin(x * 0.35 + z * 0.2) + 1) * 0.28);
-      if (Math.sin(x * 1.7 + z * 2.3) > 0.78) c.lerp(flower, 0.4);
+      c.lerpColors(grass, grassDark, fbm(x * 0.08, z * 0.08, 2) * 0.72);
+      if (fbm(x * 0.42 + 9, z * 0.42, 1) > 0.84) c.lerp(flower, 0.42);
     }
     colors[i * 3] = c.r;
     colors[i * 3 + 1] = c.g;

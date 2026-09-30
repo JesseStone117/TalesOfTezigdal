@@ -356,11 +356,16 @@ function addFloor(ctx, x, z, w, d, y, deep = false) {
   });
 }
 
+function spanSegments(span) {
+  if (span < 4) return 1;
+  return Math.min(6, Math.ceil(span / 6));
+}
+
 function addRamp(ctx, x, z0, z1, w, y0, y1, deep = false) {
   const len = z1 - z0;
   const dy = y1 - y0;
   const hyp = Math.hypot(len, dy);
-  const geo = new THREE.BoxGeometry(w, 0.35, hyp);
+  const geo = new THREE.BoxGeometry(w, 0.35, hyp, spanSegments(w), 1, spanSegments(hyp));
   paintVary(geo, x, (y0 + y1) / 2, (z0 + z1) / 2, deep ? PALETTE.deep : PALETTE.floor);
   const mesh = new THREE.Mesh(geo, ctx.floorMat);
   mesh.userData.surface = 'floor';
@@ -524,7 +529,7 @@ function makeStoneButton(gemMat) {
 }
 
 function addBox(group, mat, w, h, d, x, y, z, shadow, palette) {
-  const geo = new THREE.BoxGeometry(w, h, d);
+  const geo = new THREE.BoxGeometry(w, h, d, spanSegments(w), spanSegments(h), spanSegments(d));
   const colors = palette || mat.userData.palette;
   if (colors) paintVary(geo, x, y, z, colors);
   const mesh = new THREE.Mesh(geo, mat);
@@ -556,7 +561,7 @@ function paintVary(geo, x, y, z, palette) {
 const PALETTE = {
   floor: ['#4e463e', '#6a5e50', '#3c352f', '#7a6c5c', '#564c42'].map((hex) => new THREE.Color(hex)),
   deep: ['#3a342e', '#524a40', '#2a2622', '#61584c', '#453e36'].map((hex) => new THREE.Color(hex)),
-  wall: ['#2c2826', '#3f3832', '#231f1c', '#514840', '#342e2a'].map((hex) => new THREE.Color(hex)),
+  wall: ['#3a342e', '#5c5146', '#2a2522', '#6e6154', '#463e36'].map((hex) => new THREE.Color(hex)),
   ceil: ['#161312', '#241e1b', '#100e0c', '#2c2622'].map((hex) => new THREE.Color(hex)),
 };
 
