@@ -1,5 +1,7 @@
-import { PLAYER } from '../src/config.js';
+import * as THREE from 'three';
+import { COMBAT, COLORS, PLAYER } from '../src/config.js';
 import { caveWalkways, createCave } from '../src/world/cave.js';
+import { Enemy } from '../src/world/enemy.js';
 import { makeCreature } from '../src/world/props.js';
 import { createVillage } from '../src/world/village.js';
 
@@ -344,6 +346,185 @@ function runPerf() {
   console.log(JSON.stringify({ ok: true, samples }, null, 2));
 }
 
+const _lightPos = new THREE.Vector3();
+
+function saturate(v) {
+  return Math.min(1, Math.max(0, v));
+}
+
+function pointAttenuation(light, x, y, z) {
+  const range = light.distance;
+  if (!(range > 0)) return 0;
+  light.getWorldPosition(_lightPos);
+  const dist = Math.hypot(_lightPos.x - x, _lightPos.y - y, _lightPos.z - z);
+  if (dist === 0) return 0;
+  const falloff = light.intensity / Math.max(dist ** light.decay, 0.01);
+  const cutoff = saturate(1 - (dist / range) ** 4);
+  return falloff * cutoff * cutoff;
+}
+
+function entryAttenuation(cave, z, y) {
+  let sum = 0;
+  cave.group.updateMatrixWorld(true);
+  cave.group.traverse((obj) => {
+    if (obj.isPointLight) sum += pointAttenuation(obj, 0, y, z);
+  });
+  return sum;
+}
+
+function runCaveLight() {
+  const samples = [];
+  for (let build = 0; build < 2; build++) {
+    const cave = createCave({ defeated: [], secretOpened: false });
+    const lights = lightCensus(cave.group);
+    if (lights.points > 24) throw new Error(`cave point lights ${lights.points}`);
+    if (lights.pointShadows) throw new Error('cave point light casts a shadow');
+    const rows = [];
+    for (let z = 8; z <= 26; z += 2) {
+      const atFloor = entryAttenuation(cave, z, 0);
+      const atEye = entryAttenuation(cave, z, 1.6);
+      const sum = Math.min(atFloor, atEye);
+      rows.push({
+        z,
+        floor: Number(atFloor.toFixed(3)),
+        eye: Number(atEye.toFixed(3)),
+        sum: Number(sum.toFixed(3)),
+      });
+      if (sum < 0.15) {
+        throw new Error(`entry light at z=${z} is ${sum.toFixed(3)} (floor ${atFloor.toFixed(3)}, eye ${atEye.toFixed(3)})`);
+      }
+    }
+    runOnce(build);
+    samples.push({ build, points: lights.points, pointShadows: lights.pointShadows, rows });
+  }
+  console.log(JSON.stringify({ ok: true, samples }, null, 2));
+}
+
+function rgbDist(a, b) {
+  return Math.hypot(a.r - b.r, a.g - b.g, a.b - b.b);
+}
+
+function runGround() {
+  const world = createVillage();
+  const mesh = world.terrainMesh;
+  const pos = mesh.geometry.attributes.position;
+  const col = mesh.geometry.attributes.color;
+  if (pos.count > 50000) throw new Error(`terrain verts ${pos.count}`);
+  let rowZ = null;
+  let bestDz = Infinity;
+  for (let i = 0; i < pos.count; i++) {
+    const dz = Math.abs(pos.getZ(i) - 20);
+    if (dz < bestDz) {
+      bestDz = dz;
+      rowZ = pos.getZ(i);
+    }
+  }
+  const row = [];
+  for (let i = 0; i < pos.count; i++) {
+    if (Math.abs(pos.getZ(i) - rowZ) > 1e-4) continue;
+    const x = pos.getX(i);
+    if (x < -0.05 || x > 9.2) continue;
+    row.push({
+      x,
+      c: new THREE.Color(col.getX(i), col.getY(i), col.getZ(i)),
+    });
+  }
+  row.sort((a, b) => a.x - b.x);
+  if (row.length < 3) throw new Error('terrain row at z=20 is missing');
+  const path = new THREE.Color(COLORS.path);
+  const grass = new THREE.Color(COLORS.grass);
+  const span = rgbDist(path, grass);
+  const center = row.reduce((best, v) => (Math.abs(v.x) < Math.abs(best.x) ? v : best));
+  const off = row.reduce((best, v) => (Math.abs(v.x - 8) < Math.abs(best.x - 8) ? v : best));
+  const centerToPath = rgbDist(center.c, path);
+  const centerToGrass = rgbDist(center.c, grass);
+  const offToPath = rgbDist(off.c, path);
+  const offToGrass = rgbDist(off.c, grass);
+  if (!(centerToPath < centerToGrass)) {
+    throw new Error(`road center is not nearer the path color (${centerToPath.toFixed(3)} vs grass ${centerToGrass.toFixed(3)})`);
+  }
+  if (!(offToGrass < offToPath)) {
+    throw new Error(`off-road point is not nearer the grass color (${offToGrass.toFixed(3)} vs path ${offToPath.toFixed(3)})`);
+  }
+  let maxJump = 0;
+  for (let i = 1; i < row.length; i++) {
+    const jump = rgbDist(row[i - 1].c, row[i].c);
+    if (jump > maxJump) maxJump = jump;
+    if (jump > span * 0.5) {
+      throw new Error(
+        `terrain colors jump ${jump.toFixed(3)} between x=${row[i - 1].x.toFixed(2)} and x=${row[i].x.toFixed(2)} `
+        + `(limit ${(span * 0.5).toFixed(3)})`,
+      );
+    }
+  }
+  const homes = collect(world.group, 'cottage');
+  const xs = homes.map((h) => h.position.x);
+  const zs = homes.map((h) => h.position.z);
+  const sepX = Math.max(...xs) - Math.min(...xs);
+  const sepZ = Math.max(...zs) - Math.min(...zs);
+  if (homes.length <= 4 || sepX < 34 || sepZ < 24) {
+    throw new Error(`town scale dwellings=${homes.length} sep ${sepX.toFixed(1)} x ${sepZ.toFixed(1)}`);
+  }
+  console.log(JSON.stringify({
+    ok: true,
+    verts: pos.count,
+    rowZ: Number(rowZ.toFixed(3)),
+    span: Number(span.toFixed(3)),
+    maxJump: Number(maxJump.toFixed(3)),
+    limit: Number((span * 0.5).toFixed(3)),
+    center: { x: Number(center.x.toFixed(2)), toPath: Number(centerToPath.toFixed(3)), toGrass: Number(centerToGrass.toFixed(3)) },
+    off: { x: Number(off.x.toFixed(2)), toPath: Number(offToPath.toFixed(3)), toGrass: Number(offToGrass.toFixed(3)) },
+    dwellings: homes.length,
+    sepX: Number(sepX.toFixed(2)),
+    sepZ: Number(sepZ.toFixed(2)),
+  }, null, 2));
+  runTown();
+}
+
+function runStun() {
+  const world = createVillage();
+  const enemy = new Enemy({ id: 'stun-grunt', x: 0, z: 12, homeX: 0, homeZ: 12 });
+  world.group.add(enemy.group);
+  const player = { x: 0, z: 15.2, dead: false };
+  const before = enemy.health;
+  const lethal = enemy.takeDamage(before, player.x, player.z);
+  if (!lethal || enemy.group.visible) throw new Error('lethal hit did not hide the enemy');
+
+  const live = new Enemy({ id: 'stun-live', x: 0, z: 12, homeX: 0, homeZ: 12 });
+  world.group.add(live.group);
+  const hurt = live.takeDamage(10, player.x, player.z);
+  if (hurt || live.health <= 0 || live.health >= before) {
+    throw new Error(`non-lethal hit changed health wrong: ${live.health}`);
+  }
+  const distOf = () => Math.hypot(player.x - live.x, player.z - live.z);
+  const d0 = distOf();
+  const dt = 0.04;
+  let elapsed = 0;
+  while (elapsed + 1e-8 < COMBAT.hitStun) {
+    live.update(dt, player, world, null);
+    elapsed += dt;
+  }
+  const approach = d0 - distOf();
+  if (approach >= 0.05) {
+    throw new Error(`enemy closed ${approach.toFixed(3)} during hit stun (${elapsed.toFixed(3)}s)`);
+  }
+  const held = distOf();
+  for (let i = 0; i < 20; i++) live.update(dt, player, world, null);
+  const closed = held - distOf();
+  if (closed < 0.2) {
+    throw new Error(`enemy did not resume chase (closed ${closed.toFixed(3)} from ${held.toFixed(3)})`);
+  }
+  console.log(JSON.stringify({
+    ok: true,
+    hitStun: COMBAT.hitStun,
+    elapsed: Number(elapsed.toFixed(3)),
+    approach: Number(approach.toFixed(4)),
+    closed: Number(closed.toFixed(3)),
+    health: live.health,
+    hiddenOnKill: true,
+  }, null, 2));
+}
+
 const mode = process.argv[2] || 'walkways';
 if (mode === 'walkways' || mode === 'all') {
   for (let i = 0; i < BUILDS; i++) runOnce(i);
@@ -366,3 +547,6 @@ if (mode === 'town' || mode === 'all') {
 }
 if (mode === 'assets' || mode === 'all') runAssets();
 if (mode === 'perf' || mode === 'all') runPerf();
+if (mode === 'cave-light' || mode === 'all') runCaveLight();
+if (mode === 'ground' || mode === 'all') runGround();
+if (mode === 'stun' || mode === 'all') runStun();

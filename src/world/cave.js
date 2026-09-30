@@ -108,6 +108,7 @@ export function createCave(saveData) {
 
     placeTorch(ctx, -room.w * 0.36, room.z - room.d * 0.22, 0);
     if (room.w > 16) placeTorch(ctx, room.w * 0.36, room.z + room.d * 0.18, 0);
+    if (room.kind === 'entry') placeTorch(ctx, -2.2, room.z + room.d * 0.36, 0);
 
     if (room.kind === 'fight' || room.kind === 'ambush') {
       const count = room.enemies || 1;
@@ -209,9 +210,9 @@ export function createCave(saveData) {
   obstacles.push(aabbObstacle(-40, 40, -4, 0.2));
   obstacles.push(aabbObstacle(-40, 40, 292, 300));
 
-  const ambient = new THREE.HemisphereLight(0x6a6178, 0x1a1210, 0.7);
-  const fill = new THREE.AmbientLight(0x3a3236, 0.55);
-  const entrance = new THREE.DirectionalLight(0xffd8a8, 0.35);
+  const ambient = new THREE.HemisphereLight(0x9a92aa, 0x4a382c, 1.35);
+  const fill = new THREE.AmbientLight(0x7a6556, 1.05);
+  const entrance = new THREE.DirectionalLight(0xffd2a4, 0.85);
   entrance.position.set(0, 4, -6);
   group.add(ambient, fill, entrance);
 
@@ -254,7 +255,7 @@ export function createCave(saveData) {
     },
     applySky(scene) {
       scene.background = new THREE.Color(COLORS.cave);
-      scene.fog = new THREE.FogExp2(COLORS.cave, 0.026);
+      scene.fog = new THREE.FogExp2(0x1a1618, 0.012);
     },
     triggers: [
       {
@@ -559,9 +560,9 @@ function paintVary(geo, x, y, z, palette) {
 }
 
 const PALETTE = {
-  floor: ['#4e463e', '#6a5e50', '#3c352f', '#7a6c5c', '#564c42'].map((hex) => new THREE.Color(hex)),
+  floor: ['#6e6256', '#8e7a66', '#5a4e44', '#a08870', '#746454'].map((hex) => new THREE.Color(hex)),
   deep: ['#3a342e', '#524a40', '#2a2622', '#61584c', '#453e36'].map((hex) => new THREE.Color(hex)),
-  wall: ['#3a342e', '#5c5146', '#2a2522', '#6e6154', '#463e36'].map((hex) => new THREE.Color(hex)),
+  wall: ['#524a42', '#74685c', '#403830', '#867668', '#5c5248'].map((hex) => new THREE.Color(hex)),
   ceil: ['#161312', '#241e1b', '#100e0c', '#2c2622'].map((hex) => new THREE.Color(hex)),
 };
 

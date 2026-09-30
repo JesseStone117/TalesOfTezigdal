@@ -30,7 +30,7 @@ export class Player {
     this.onHurt = null;
     this.onDeath = null;
     this.onPunch = null;
-    this.lantern = new THREE.PointLight(0xffe0b0, 5.2, 16, 1.6);
+    this.lantern = new THREE.PointLight(0xffe0b0, 16, 26, 1.35);
     this.lantern.position.set(0.25, 1.5, 0.2);
     this.lantern.visible = false;
     this.group.add(this.lantern);

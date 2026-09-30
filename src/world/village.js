@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { COLORS } from '../config.js';
-import { fbm } from '../utils.js';
+import { fbm, smoothstep } from '../utils.js';
 import { DESTRAL_NPCS } from '../campaigns.js';
 import { aabbObstacle, circleObstacle, resolveMove } from './collision.js';
 import { Npc } from './npc.js';
@@ -238,6 +238,25 @@ function aabbAround(x, z, rot, hw, hd) {
   return aabbObstacle(x - ex, x + ex, z - ez, z + ez);
 }
 
+function roadPaint(x, z) {
+  const ax = Math.abs(x);
+  const across = ax <= 1.4 ? 1 : ax >= 6.6 ? 0 : 1 - smoothstep(1.4, 6.6, ax);
+  const along = smoothstep(-8, 4, z) * (1 - smoothstep(VILLAGE.pass.z + 1, VILLAGE.pass.z + 9, z));
+  const bowl = 1 - smoothstep(2.2, 9.5, Math.hypot(x, z));
+  return Math.max(across * along, bowl * 0.45);
+}
+
+function yardPaint(x, z) {
+  let best = 0;
+  for (let k = 0; k < COTTAGES.length; k++) {
+    const home = COTTAGES[k];
+    const dist = Math.hypot(x - home.x, z - home.z);
+    const weight = 1 - smoothstep(2.2, 8.4, dist);
+    if (weight > best) best = weight;
+  }
+  return best;
+}
+
 function buildTerrain() {
   const size = 140;
   const seg = 150;
@@ -254,28 +273,24 @@ function buildTerrain() {
   const c = new THREE.Color();
   const flower = new THREE.Color(0xd2c06a);
   const yard = new THREE.Color(0x8d7048);
+  const yardTint = yard.clone().lerp(dirt, 0.28);
 
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i);
     const z = pos.getZ(i);
     const y = villageHeight(x, z);
     pos.setY(i, y);
-    let nearHome = false;
-    for (let k = 0; k < COTTAGES.length; k++) {
-      const home = COTTAGES[k];
-      if ((x - home.x) * (x - home.x) + (z - home.z) * (z - home.z) < 28) {
-        nearHome = true;
-        break;
-      }
-    }
-    if (isOnPath(x, z) && y < 1.4) c.copy(dirt);
-    else if (nearHome && y < 1.5) c.lerpColors(yard, dirt, 0.45);
-    else if (y > 18) c.copy(snow);
+    const roadW = y < 2.4 ? roadPaint(x, z) : 0;
+    const yardW = y < 2.4 ? yardPaint(x, z) * (1 - roadW) : 0;
+    if (y > 18) c.copy(snow);
     else if (y > 8) c.lerpColors(rock, rockDark, Math.min(1, (y - 8) / 8));
-    else if (y > 1.6) c.lerpColors(grassDark, rock, (y - 1.6) / 6.4);
+    else if (y > 3.4) c.lerpColors(grassDark, rock, (y - 3.4) / 6);
     else {
-      c.lerpColors(grass, grassDark, fbm(x * 0.08, z * 0.08, 2) * 0.72);
-      if (fbm(x * 0.42 + 9, z * 0.42, 1) > 0.84) c.lerp(flower, 0.42);
+      c.lerpColors(grass, grassDark, fbm(x * 0.07, z * 0.07, 2) * 0.5);
+      const fleck = smoothstep(0.8, 0.97, fbm(x * 0.16 + 9, z * 0.16, 1));
+      c.lerp(flower, fleck * 0.16 * (1 - roadW) * (1 - yardW));
+      if (yardW > 0) c.lerp(yardTint, yardW * 0.8);
+      if (roadW > 0) c.lerp(dirt, roadW);
     }
     colors[i * 3] = c.r;
     colors[i * 3 + 1] = c.g;

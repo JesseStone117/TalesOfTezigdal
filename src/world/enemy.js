@@ -29,6 +29,7 @@ export class Enemy {
     this.attackTimer = 0;
     this.cooldown = 0;
     this.hitFlash = 0;
+    this.stun = 0;
     this.wanderT = Math.random() * 4;
     this.wanderA = Math.random() * Math.PI * 2;
     this.homeX = homeX ?? x;
@@ -73,6 +74,7 @@ export class Enemy {
       this.group.visible = false;
       return true;
     }
+    this.stun = COMBAT.hitStun;
     this.syncHpBar();
     return false;
   }
@@ -96,6 +98,14 @@ export class Enemy {
     this.cooldown = Math.max(0, this.cooldown - dt);
     this.hitFlash = Math.max(0, this.hitFlash - dt);
     this.body.scale.setScalar(this.bodyBase * (this.hitFlash > 0 ? 1.07 : 1));
+
+    if (this.stun > 0) {
+      this.stun = Math.max(0, this.stun - dt);
+      this.group.position.y = world.heightAt(this.x, this.z);
+      if (camera) this.hpBar.quaternion.copy(camera.quaternion);
+      this.syncHpBar();
+      return;
+    }
 
     const dx = player.x - this.x;
     const dz = player.z - this.z;

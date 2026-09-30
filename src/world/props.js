@@ -227,7 +227,7 @@ export function makeTorch() {
   const flame = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.34, 6), shared.flame);
   flame.position.y = 1.32;
   flame.name = 'flame';
-  const light = new THREE.PointLight(0xff9a4a, 4.2, 14, 1.6);
+  const light = new THREE.PointLight(0xffb060, 7.5, 20, 1.5);
   light.castShadow = false;
   light.position.y = 1.34;
   group.add(pole, cup, bracket, flame, light);

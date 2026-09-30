@@ -77,6 +77,32 @@ function pngPixels(file) {
   return { width, height, rgb };
 }
 
+function centralBand(file) {
+  const { width, height, rgb } = pngPixels(file);
+  const y0 = Math.floor(height * 0.35);
+  const y1 = Math.ceil(height * 0.65);
+  const x0 = Math.floor(width * 0.30);
+  const x1 = Math.ceil(width * 0.70);
+  let sum = 0;
+  let sumSq = 0;
+  let n = 0;
+  for (let y = y0; y < y1; y++) {
+    for (let x = x0; x < x1; x++) {
+      const o = (y * width + x) * 3;
+      const lum = 0.2126 * rgb[o] + 0.7152 * rgb[o + 1] + 0.0722 * rgb[o + 2];
+      sum += lum;
+      sumSq += lum * lum;
+      n += 1;
+    }
+  }
+  const mean = sum / n;
+  const std = Math.sqrt(Math.max(0, sumSq / n - mean * mean));
+  if (mean < 40 || mean > 170 || std < 12) {
+    throw new Error(`cave center band mean ${mean.toFixed(1)} std ${std.toFixed(1)} (want mean 40–170, std ≥ 12)`);
+  }
+  return { mean: Number(mean.toFixed(1)), std: Number(std.toFixed(1)), n };
+}
+
 function assertFilled(file) {
   const { width, height, rgb } = pngPixels(file);
   if (width !== VIEW.width || height !== VIEW.height) {
@@ -269,6 +295,7 @@ try {
   const caveCanvas = await assertCanvas(page);
   await page.screenshot({ path: shot('cave.png') });
   const caveShot = assertFilled(shot('cave.png'));
+  const caveBand = centralBand(shot('cave.png'));
   const cave = await page.evaluate(() => ({
     area: window.__tot.game.world.id,
     enemies: window.__tot.game.world.enemies.length,
@@ -288,6 +315,7 @@ try {
     canvas,
     caveCanvas,
     shots: [villageShot, caveShot],
+    caveBand,
   }, null, 2));
 } catch (err) {
   console.error('SMOKE FAIL', err.message);
