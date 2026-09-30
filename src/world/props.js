@@ -1,6 +1,12 @@
 import * as THREE from 'three';
 import { COLORS } from '../config.js';
-import { fbm } from '../utils.js';
+import { fbm, smoothstep } from '../utils.js';
+
+export const VILLAGE = {
+  rim: 34,
+  bound: 64,
+  pass: { x: 0, z: 40.6, radius: 2.2 },
+};
 
 const shared = {
   plaster: new THREE.MeshStandardMaterial({ color: COLORS.plaster, roughness: 0.9 }),
@@ -214,42 +220,38 @@ export function villageHeight(x, z) {
   const r = Math.hypot(x, z);
   const n = fbm(x * 0.07, z * 0.07);
   const n2 = fbm(x * 0.2 + 12, z * 0.2);
-  let h = 0.18 * n + 0.06 * n2;
+  let h = 0.14 * n + 0.05 * n2;
 
-  const rim = 15.5;
-  if (r > rim) {
-    const t = (r - rim) / 11;
-    let mountain = Math.min(t, 1.9) ** 1.2 * 24 + n * 4.2 + n2 * 2.2;
-    mountain = Math.min(mountain, 40);
+  if (r > VILLAGE.rim) {
+    const t = (r - VILLAGE.rim) / 9;
+    let mountain = Math.min(t, 2) ** 1.15 * 28 + n * 2.8 + n2 * 1.2;
+    mountain = Math.min(mountain, 42);
     const ang = Math.atan2(x, z);
-    const gap = Math.exp(-(ang * ang) * 20);
-    mountain *= 1 - gap * 0.96;
+    const gap = Math.exp(-(ang * ang) * 16);
+    mountain *= 1 - gap * 0.97;
     h += mountain;
   }
 
-  if (z > 4 && z < 30 && Math.abs(x) < 3.5) {
-    const flatten = smoothPath(Math.abs(x));
-    const pathH = 0.12 + n * 0.12;
-    h = pathH * flatten + h * (1 - flatten);
+  const ax = Math.abs(x);
+  const across = ax <= 2.7 ? 1 : ax >= 4.8 ? 0 : 1 - smoothstep(2.7, 4.8, ax);
+  const along = smoothstep(-1, 3.5, z) * (1 - smoothstep(VILLAGE.pass.z + 1.2, VILLAGE.pass.z + 6, z));
+  const road = across * along;
+  if (road > 0) {
+    const pathH = 0.08 + n * 0.05;
+    h = pathH * road + h * (1 - road);
   }
 
-  if (Math.hypot(x, z) < 3.8) {
-    h *= 0.35;
+  if (r < 8) {
+    const bowl = 1 - smoothstep(4.5, 8, r);
+    h *= 1 - bowl * 0.62;
   }
 
   return h;
 }
 
-function smoothPath(ax) {
-  if (ax < 2.15) return 1;
-  if (ax > 3.5) return 0;
-  const t = (ax - 2.15) / 1.35;
-  return 1 - t * t * (3 - 2 * t);
-}
-
 export function isOnPath(x, z) {
-  if (Math.hypot(x, z) < 3.6) return true;
-  return z > -8 && z < 26 && Math.abs(x) < 2.35;
+  if (Math.hypot(x, z) < 7) return true;
+  return z > -6 && z < VILLAGE.pass.z + 3 && Math.abs(x) < 3.1;
 }
 
 export { shared };

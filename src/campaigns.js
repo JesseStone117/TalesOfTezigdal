@@ -6,7 +6,7 @@ export const CAMPAIGNS = [
     description:
       'A traveler arrives in a mountain-bound village, seeking the old stories of Tezigdal. The only road out is a cave that does not want to be walked.',
     available: true,
-    modelUrl: `${import.meta.env.BASE_URL}models/Destral.glb`,
+    modelUrl: `${import.meta.env?.BASE_URL ?? './'}models/Destral.glb`,
   },
   {
     id: 'locked-1',
@@ -24,8 +24,8 @@ export const DESTRAL_NPCS = [
     title: 'Village Elder',
     color: 0xb8875a,
     accent: 0x6b2d3c,
-    x: 2.1,
-    z: -1.4,
+    x: 3.4,
+    z: -2.6,
     greeting:
       'You walk like someone who has come a long way to hear a name spoken correctly. Hollyhollow still says it: Tezigdal.',
     topics: [
@@ -57,8 +57,8 @@ export const DESTRAL_NPCS = [
     title: 'Farmer',
     color: 0x6a7a45,
     accent: 0x3e2a18,
-    x: -6.4,
-    z: 2.2,
+    x: -11.2,
+    z: 5.6,
     greeting: 'Soil is thin here, but it is honest. Same as the stories, if you do not scrape too hard.',
     topics: [
       {
@@ -82,8 +82,8 @@ export const DESTRAL_NPCS = [
     title: 'Child',
     color: 0xd4a45a,
     accent: 0x3a4a7a,
-    x: 4.6,
-    z: -3.8,
+    x: 8.6,
+    z: -6.2,
     greeting: 'Are you the one who is going into the dark? I would go. Mira says I would become a story too fast.',
     topics: [
       {
@@ -107,8 +107,8 @@ export const DESTRAL_NPCS = [
     title: 'Watch',
     color: 0x5c6570,
     accent: 0x2b2c30,
-    x: 1.8,
-    z: 14.5,
+    x: 2.4,
+    z: 26.5,
     greeting:
       'If you are sightseeing, the mountains will do. If you mean to take the pass, take a full stomach and do not expect the dark to be empty.',
     topics: [
@@ -140,8 +140,8 @@ export const DESTRAL_NPCS = [
     title: 'Weaver',
     color: 0x8a4a62,
     accent: 0xcfc3a6,
-    x: 7.4,
-    z: 1.6,
+    x: 12.6,
+    z: 6.4,
     greeting: 'Hold still — the light on you is good. Travelers bring new patterns whether they mean to or not.',
     topics: [
       {

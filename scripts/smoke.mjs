@@ -1,4 +1,5 @@
 import puppeteer from 'puppeteer-core';
+import { VILLAGE } from '../src/world/props.js';
 
 const chrome = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 const url = 'http://localhost:5173/';
@@ -115,9 +116,9 @@ try {
   if (!/Tezigdal|Hollyhollow/i.test(speech)) throw new Error(`Unexpected dialogue: ${speech}`);
 
   await page.evaluate(() => window.__tot.game.closeTalk());
-  await page.evaluate(() => {
-    window.__tot.game.player.setPose(0, window.__tot.game.world.heightAt(0, 24.4), 24.4, 0);
-  });
+  await page.evaluate((z) => {
+    window.__tot.game.player.setPose(0, window.__tot.game.world.heightAt(0, z), z, 0);
+  }, VILLAGE.pass.z);
   await page.waitForFunction(() => window.__tot.game.world?.id === 'cave', { timeout: 8000 });
   await new Promise((r) => setTimeout(r, 400));
   await page.screenshot({ path: 'scripts/cave.png' });

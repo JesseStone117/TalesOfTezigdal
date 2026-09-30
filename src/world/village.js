@@ -4,6 +4,7 @@ import { DESTRAL_NPCS } from '../campaigns.js';
 import { aabbObstacle, circleObstacle, resolveMove } from './collision.js';
 import { Npc } from './npc.js';
 import {
+  VILLAGE,
   enableShadows,
   isOnPath,
   makeArch,
@@ -16,6 +17,19 @@ import {
   villageHeight,
 } from './props.js';
 
+const COTTAGES = [
+  { x: -17.5, z: -8, rot: 0.35, w: 4.4, d: 3.6, h: 2.5 },
+  { x: 18.2, z: -6.5, rot: -0.28, w: 4.0, d: 3.4, h: 2.35 },
+  { x: -14, z: -16.5, rot: 0.15, w: 3.8, d: 3.4, h: 2.3 },
+  { x: 12.4, z: -17.2, rot: -0.12, w: 3.6, d: 3.2, h: 2.2 },
+  { x: -15.2, z: 16.2, rot: 0.55, w: 4.2, d: 3.5, h: 2.45 },
+  { x: 16.8, z: 15.4, rot: -0.42, w: 3.8, d: 3.3, h: 2.3 },
+  { x: -20.4, z: 3.2, rot: 0.95, w: 3.6, d: 3.4, h: 2.25 },
+  { x: 21.2, z: 1.8, rot: -0.75, w: 3.5, d: 3.2, h: 2.2 },
+  { x: -7.2, z: 12.4, rot: 0.18, w: 3.5, d: 3.2, h: 2.2 },
+  { x: 5.4, z: -12.2, rot: 0.08, w: 3.6, d: 3.2, h: 2.25 },
+];
+
 export function createVillage() {
   const group = new THREE.Group();
   const obstacles = [];
@@ -25,23 +39,19 @@ export function createVillage() {
   const terrain = buildTerrain();
   group.add(terrain);
 
-  const cottages = [
-    { x: -7.2, z: -5.4, rot: 0.25, w: 4.2, d: 3.6, h: 2.4 },
-    { x: 8.1, z: -6.2, rot: -0.4, w: 3.7, d: 3.3, h: 2.25 },
-    { x: -9.0, z: 4.4, rot: 0.55, w: 3.5, d: 3.5, h: 2.3 },
-    { x: 6.8, z: 5.8, rot: -0.18, w: 3.4, d: 3.1, h: 2.15 },
-  ];
-  for (const c of cottages) {
+  for (const c of COTTAGES) {
     const mesh = makeCottage(c.w, c.d, c.h);
     const y = villageHeight(c.x, c.z);
     mesh.position.set(c.x, y, c.z);
     mesh.rotation.y = c.rot;
+    mesh.userData.kind = 'cottage';
     group.add(mesh);
     obstacles.push(aabbAround(c.x, c.z, c.rot, c.w * 0.52, c.d * 0.52));
   }
 
   const well = makeWell();
   well.position.set(0, villageHeight(0, 0), 0);
+  well.userData.kind = 'well';
   group.add(well);
   obstacles.push(circleObstacle(0, 0, 1.15));
   interactables.push({
@@ -57,18 +67,20 @@ export function createVillage() {
   });
 
   const fire = makeCampfire();
-  fire.position.set(-2.4, villageHeight(-2.4, 1.6), 1.6);
+  fire.position.set(-3.6, villageHeight(-3.6, 2.6), 2.6);
+  fire.userData.kind = 'campfire';
   group.add(fire);
   flames.push(fire.getObjectByName('flame'));
-  obstacles.push(circleObstacle(-2.4, 1.6, 0.55));
+  obstacles.push(circleObstacle(-3.6, 2.6, 0.55));
 
   const trees = [
-    [-11, -8], [11, -9], [-12, 8], [12, 9], [-5, -11], [5, -12],
-    [-14, -2], [14, 2], [-10, 12], [10, 12], [0, -12], [-7, 10],
-    [8, -10], [-3, 11.5], [3.5, 12.2],
+    [-24, -12], [-26, 2], [-23, 14], [-18, 24], [-10, 24],
+    [24, -10], [26, 4], [22, 16], [17, 24], [8, 26],
+    [-6, -24], [6, -24], [14, -22], [-16, -22],
+    [-28, -4], [28, 8], [-8, 22], [12, -24],
   ];
   for (const [x, z] of trees) {
-    if (Math.hypot(x, z) < 8) continue;
+    if (nearSettlement(x, z)) continue;
     const tree = makeTree(0.85 + Math.random() * 0.5);
     tree.position.set(x, villageHeight(x, z), z);
     tree.rotation.y = Math.random() * Math.PI;
@@ -77,31 +89,35 @@ export function createVillage() {
   }
 
   const rocks = [
-    [-4.5, 8.5], [4.8, 9.2], [-13, 1], [13, -3], [2.2, 17.5], [-2.4, 17.8],
-    [-8, -9], [9, 11],
+    [-10, 22], [12, 22], [-24, -2], [24, -2],
+    [3.4, 33.5], [-3.5, 32.8],
+    [-8, -21], [9, 19], [0.2, -20],
   ];
   for (const [x, z] of rocks) {
+    if (nearSettlement(x, z)) continue;
     const rock = makeRock(0.9 + Math.random() * 0.8);
     rock.position.set(x, villageHeight(x, z) + 0.1, z);
     group.add(rock);
     obstacles.push(circleObstacle(x, z, 0.7));
   }
 
-  const archZ = 23.2;
+  const archZ = VILLAGE.pass.z - 2.15;
   const arch = makeArch();
   arch.position.set(0, villageHeight(0, archZ), archZ);
+  arch.userData.kind = 'arch';
   group.add(arch);
   obstacles.push(aabbObstacle(-4.2, -2.2, archZ - 1.1, archZ + 1.1));
   obstacles.push(aabbObstacle(2.2, 4.2, archZ - 1.1, archZ + 1.1));
 
   const sign = makeSign();
-  sign.position.set(-2.6, villageHeight(-2.6, 19.4), 19.4);
-  sign.rotation.y = 0.4;
+  sign.position.set(-2.5, villageHeight(-2.5, archZ - 3.6), archZ - 3.6);
+  sign.rotation.y = 0.35;
+  sign.userData.kind = 'sign';
   group.add(sign);
   interactables.push({
     id: 'sign',
-    x: -2.6,
-    z: 19.4,
+    x: -2.5,
+    z: archZ - 3.6,
     radius: 1.6,
     prompt: (pad) => `${pad ? 'A' : 'E'}  Read the sign`,
     use: (game) => {
@@ -133,11 +149,11 @@ export function createVillage() {
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   sun.shadow.camera.near = 2;
-  sun.shadow.camera.far = 80;
-  sun.shadow.camera.left = -40;
-  sun.shadow.camera.right = 40;
-  sun.shadow.camera.top = 40;
-  sun.shadow.camera.bottom = -40;
+  sun.shadow.camera.far = 160;
+  sun.shadow.camera.left = -70;
+  sun.shadow.camera.right = 70;
+  sun.shadow.camera.top = 70;
+  sun.shadow.camera.bottom = -70;
   sun.shadow.bias = -0.0004;
   group.add(hemi, sun);
 
@@ -155,13 +171,13 @@ export function createVillage() {
     obstacles,
     terrainMesh: terrain,
     spawn: { x: 0, z: -6.5, yaw: 0 },
-    caveReturn: { x: 0, z: 20.4, yaw: 0 },
+    caveReturn: { x: 0, z: VILLAGE.pass.z - 4.4, yaw: Math.PI },
     heightAt: villageHeight,
     resolve(px, pz, nx, nz, radius) {
       const stepped = resolveMove(px, pz, nx, nz, radius, obstacles, villageHeight);
       const r = Math.hypot(stepped.x, stepped.z);
-      if (r > 42) {
-        const s = 42 / r;
+      if (r > VILLAGE.bound) {
+        const s = VILLAGE.bound / r;
         return { x: stepped.x * s, z: stepped.z * s };
       }
       return stepped;
@@ -176,19 +192,31 @@ export function createVillage() {
     },
     applySky(scene) {
       scene.background = new THREE.Color(COLORS.sky);
-      scene.fog = new THREE.FogExp2(COLORS.sky, 0.018);
+      scene.fog = new THREE.FogExp2(COLORS.sky, 0.011);
     },
     triggers: [
       {
         id: 'to-cave',
-        x: 0,
-        z: 24.4,
-        radius: 2.1,
+        x: VILLAGE.pass.x,
+        z: VILLAGE.pass.z,
+        radius: VILLAGE.pass.radius,
         run: (game) => game.changeArea('cave'),
       },
     ],
     lantern: false,
   };
+}
+
+function nearSettlement(x, z) {
+  if (isOnPath(x, z)) return true;
+  if (Math.hypot(x, z) < 5) return true;
+  for (const c of COTTAGES) {
+    if (Math.hypot(x - c.x, z - c.z) < 6.2) return true;
+  }
+  for (const npc of DESTRAL_NPCS) {
+    if (Math.hypot(x - npc.x, z - npc.z) < 2.2) return true;
+  }
+  return false;
 }
 
 function aabbAround(x, z, rot, hw, hd) {
@@ -200,8 +228,8 @@ function aabbAround(x, z, rot, hw, hd) {
 }
 
 function buildTerrain() {
-  const size = 92;
-  const seg = 96;
+  const size = 140;
+  const seg = 120;
   const geo = new THREE.PlaneGeometry(size, size, seg, seg);
   geo.rotateX(-Math.PI / 2);
   const pos = geo.attributes.position;
