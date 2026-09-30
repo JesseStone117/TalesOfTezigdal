@@ -4,6 +4,59 @@ import { aabbObstacle, circleObstacle, resolveMove } from './collision.js';
 import { Enemy } from './enemy.js';
 import { enableShadows, makeRock, makeTorch } from './props.js';
 
+export const CAVE_ROOMS = [
+  { z: 14, w: 18, d: 20, kind: 'entry' },
+  { z: 48, w: 26, d: 22, kind: 'fight', enemies: 3 },
+  { z: 86, w: 22, d: 20, kind: 'fight', enemies: 3 },
+  { z: 118, w: 18, d: 16, kind: 'ambush', enemies: 2 },
+  { z: 150, w: 28, d: 26, kind: 'boss' },
+];
+
+// rampDir +1: the ramp leaves the pad's +z edge and falls to floorY as z increases.
+// The join is the pad edge, so the ramp and the pad share one height there.
+export const CAVE_LEDGES = [
+  { id: 'west', x: -14, z: 212, w: 14, d: 16, y: 0.5, rampW: 6, rampLen: 14, rampDir: 1, floorY: -3 },
+  { id: 'east', x: 14, z: 235, w: 13, d: 14, y: 2.2, rampW: 5.2, rampLen: 16, rampDir: -1, floorY: -3 },
+  { id: 'north', x: 0, z: 248, w: 18, d: 12, y: 3.5, rampW: 7, rampLen: 16, rampDir: -1, floorY: -3 },
+];
+
+const DEEP_RAMP = { z0: 180, z1: 198 };
+const LANE_HALF = 1.9;
+
+export function ledgeEnds(ledge) {
+  const half = ledge.d / 2;
+  const joinZ = ledge.z + ledge.rampDir * half;
+  const lowZ = joinZ + ledge.rampDir * ledge.rampLen;
+  const farZ = ledge.z - ledge.rampDir * half;
+  return { joinZ, lowZ, farZ };
+}
+
+export function caveWalkways() {
+  const corridors = [];
+  for (let i = 0; i < CAVE_ROOMS.length - 1; i++) {
+    const a = CAVE_ROOMS[i];
+    const b = CAVE_ROOMS[i + 1];
+    corridors.push({ id: `between-${i}`, x: 0, z0: a.z, z1: b.z });
+  }
+  const ledges = CAVE_LEDGES.map((ledge) => {
+    const { lowZ, farZ } = ledgeEnds(ledge);
+    return { id: ledge.id, x: ledge.x, z0: lowZ, z1: farZ + ledge.rampDir * 0.55 };
+  });
+  const a0 = CAVE_ROOMS[0];
+  const b0 = CAVE_ROOMS[1];
+  return {
+    corridors,
+    entry: { id: 'entry', x: 0, z0: 2.2, z1: a0.z },
+    descent: { id: 'descent', x: 0, z0: 172, z1: DEEP_RAMP.z1 + 8 },
+    ledges,
+    upper: { id: 'upper', x: 0, z0: 248, z1: 276 },
+    wall: {
+      x: 0,
+      z: (a0.z + a0.d / 2 + (b0.z - b0.d / 2)) / 2,
+    },
+  };
+}
+
 export function createCave(saveData) {
   const group = new THREE.Group();
   const obstacles = [];
@@ -26,16 +79,11 @@ export function createCave(saveData) {
     emissiveIntensity: 0,
   });
 
-  const rooms = [
-    { z: 14, w: 18, d: 20, kind: 'entry' },
-    { z: 48, w: 26, d: 22, kind: 'fight', enemies: 3 },
-    { z: 86, w: 22, d: 20, kind: 'fight', enemies: 3 },
-    { z: 118, w: 18, d: 16, kind: 'ambush', enemies: 2 },
-    { z: 150, w: 28, d: 26, kind: 'boss' },
-  ];
+  const rooms = CAVE_ROOMS;
 
   let gruntIndex = 0;
-  const ctx = { group, obstacles, surfaces, floorMat, deepFloorMat, wallMat, ceilMat, flames };
+  const ctx = { group, obstacles, surfaces, floorMat, deepFloorMat, wallMat, ceilMat, flames, lanes: [] };
+  seedLanes(ctx);
 
   addCorridor(ctx, 0, 0.4, rooms[0].z - rooms[0].d / 2, 7.2, 0);
 
@@ -225,8 +273,8 @@ function buildDeeps(ctx, enemies, defeated, doorZ) {
   addWalls(ctx, { x: 0, z: 174, w: 14, d: 12, wallH: 6.4 }, { n: 3.2, s: 3.2 });
   placeTorch(ctx, -5, 172, 0);
 
-  addRamp(ctx, 0, 180, 198, 8, 0, -3, true);
-  addCorridorWalls(ctx, 0, 180, 198, 8, -3, 11);
+  addRamp(ctx, 0, DEEP_RAMP.z0, DEEP_RAMP.z1, 8, 0, -3, true);
+  addCorridorWalls(ctx, 0, DEEP_RAMP.z0, DEEP_RAMP.z1, 8, -3, 11);
 
   const cavernZ = 226;
   addFloor(ctx, 0, cavernZ, 46, 56, -3, true);
@@ -242,12 +290,7 @@ function buildDeeps(ctx, enemies, defeated, doorZ) {
   cavernFill.position.set(-10, 6, 240);
   ctx.group.add(cavernFill);
 
-  addFloor(ctx, -14, 212, 14, 16, 0.5, true);
-  addRamp(ctx, -14, 220, 228, 5.5, -3, 0.5, true);
-  addFloor(ctx, 14, 232, 13, 14, 2.2, true);
-  addRamp(ctx, 14, 222, 232, 5.2, -3, 2.2, true);
-  addFloor(ctx, 0, 248, 18, 12, 3.5, true);
-  addRamp(ctx, 0, 238, 248, 7, -3, 3.5, true);
+  placeLedges(ctx);
 
   addPillar(ctx, -8, 220, -3, 10);
   addPillar(ctx, 9, 214, -3, 10);
@@ -392,15 +435,53 @@ function addPillar(ctx, x, z, y, h) {
   ctx.obstacles.push(aabbObstacle(x - 0.95, x + 0.95, z - 0.95, z + 0.95));
 }
 
+function seedLanes(ctx) {
+  ctx.lanes.push({ x: 0, z0: -4, z1: 300, half: LANE_HALF });
+  for (const ledge of CAVE_LEDGES) {
+    const { lowZ, farZ } = ledgeEnds(ledge);
+    ctx.lanes.push({
+      x: ledge.x,
+      z0: Math.min(lowZ, farZ) - 1,
+      z1: Math.max(lowZ, farZ) + 1,
+      half: LANE_HALF,
+    });
+  }
+}
+
+function nearLane(lanes, x, z) {
+  for (const lane of lanes) {
+    if (z < lane.z0 || z > lane.z1) continue;
+    if (Math.abs(x - lane.x) < lane.half) return true;
+  }
+  return false;
+}
+
+function placeLedges(ctx) {
+  for (const ledge of CAVE_LEDGES) {
+    addFloor(ctx, ledge.x, ledge.z, ledge.w, ledge.d, ledge.y, true);
+    const { joinZ, lowZ } = ledgeEnds(ledge);
+    const z0 = Math.min(joinZ, lowZ);
+    const z1 = Math.max(joinZ, lowZ);
+    const highAtStart = joinZ <= lowZ;
+    const y0 = highAtStart ? ledge.y : ledge.floorY;
+    const y1 = highAtStart ? ledge.floorY : ledge.y;
+    addRamp(ctx, ledge.x, z0, z1, ledge.rampW, y0, y1, true);
+  }
+}
+
 function scatterRocks(ctx, z, w, d, y, count) {
-  for (let r = 0; r < count; r++) {
+  let placed = 0;
+  let tries = 0;
+  while (placed < count && tries < count * 14) {
+    tries += 1;
     const rx = (Math.random() - 0.5) * (w - 4);
     const rz = z + (Math.random() - 0.5) * (d - 4);
-    if (Math.abs(rx) < 1.6) continue;
+    if (nearLane(ctx.lanes, rx, rz)) continue;
     const rock = makeRock(0.7 + Math.random());
     rock.position.set(rx, y + 0.08, rz);
     ctx.group.add(rock);
     ctx.obstacles.push(circleObstacle(rx, rz, 0.65));
+    placed += 1;
   }
 }
 
